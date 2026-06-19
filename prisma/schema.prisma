@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model PreRegisteredIndex {
+  id          Int    @id @default(autoincrement())
+  indexNumber String @unique @map("index_number") @db.VarChar(50)
+
+  @@map("pre_registered_indices")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  indexNumber  String   @unique @map("index_number") @db.VarChar(50)
+  name         String   @db.VarChar(255)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  passwordResets   PasswordReset[]
+  progress         UserProgress[]
+  levelCompletions UserLevelCompletion[]
+  winnerEntry      Winner?
+
+  @@map("users")
+}
+
+model PasswordReset {
+  id          Int       @id @default(autoincrement())
+  userId      Int       @map("user_id")
+  user        User      @relation(fields: [userId], references: [id])
+  requestedAt DateTime  @map("requested_at")
+  availableAt DateTime  @map("available_at")
+  usedAt      DateTime? @map("used_at")
+
+  @@map("password_resets")
+}
+
+model QuizLevel {
+  id         Int     @id @default(autoincrement())
+  uuid       String  @unique @db.Char(36)
+  title      String  @db.VarChar(255)
+  levelOrder Int     @map("level_order")
+  isActive   Boolean @default(true) @map("is_active")
+
+  questions        QuizQuestion[]
+  levelCompletions UserLevelCompletion[]
+
+  @@map("quiz_levels")
+}
+
+model QuizQuestion {
+  id            Int       @id @default(autoincrement())
+  quizLevelId   Int       @map("quiz_level_id")
+  quizLevel     QuizLevel @relation(fields: [quizLevelId], references: [id])
+  questionText  String    @map("question_text") @db.Text
+  answerKey     String    @map("answer_key") @db.VarChar(500)
+  questionOrder Int       @map("question_order")
+
+  progress UserProgress[]
+
+  @@map("quiz_questions")
+}
+
+model UserProgress {
+  id         Int          @id @default(autoincrement())
+  userId     Int          @map("user_id")
+  user       User         @relation(fields: [userId], references: [id])
+  questionId Int          @map("question_id")
+  question   QuizQuestion @relation(fields: [questionId], references: [id])
+  passedAt   DateTime     @map("passed_at")
+
+  @@map("user_progress")
+}
+
+model UserLevelCompletion {
+  id          Int       @id @default(autoincrement())
+  userId      Int       @map("user_id")
+  user        User      @relation(fields: [userId], references: [id])
+  quizLevelId Int       @map("quiz_level_id")
+  quizLevel   QuizLevel @relation(fields: [quizLevelId], references: [id])
+  completedAt DateTime  @map("completed_at")
+
+  @@map("user_level_completion")
+}
+
+model Winner {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @unique @map("user_id")
+  user       User     @relation(fields: [userId], references: [id])
+  finishedAt DateTime @map("finished_at")
+  rank       Int
+
+  @@map("winners")
+}
