@@ -9,91 +9,84 @@ datasource db {
 
 model PreRegisteredIndex {
   id          Int    @id @default(autoincrement())
-  indexNumber String @unique @map("index_number") @db.VarChar(50)
-
-  @@map("pre_registered_indices")
+  indexNumber String @unique
 }
 
 model User {
-  id           Int      @id @default(autoincrement())
-  indexNumber  String   @unique @map("index_number") @db.VarChar(50)
-  name         String   @db.VarChar(255)
-  passwordHash String   @map("password_hash") @db.VarChar(255)
-  createdAt    DateTime @default(now()) @map("created_at")
+  id              Int                   @id @default(autoincrement())
+  indexNumber     String                @unique
+  name            String
+  passwordHash    String
+  createdAt       DateTime              @default(now())
 
-  passwordResets   PasswordReset[]
-  progress         UserProgress[]
-  levelCompletions UserLevelCompletion[]
-  winnerEntry      Winner?
-
-  @@map("users")
+  passwordResets  PasswordReset[]
+  progress        UserProgress[]
+  completedLevels UserLevelCompletion[]
+  winners         Winner[]
 }
 
 model PasswordReset {
-  id          Int       @id @default(autoincrement())
-  userId      Int       @map("user_id")
-  user        User      @relation(fields: [userId], references: [id])
-  requestedAt DateTime  @map("requested_at")
-  availableAt DateTime  @map("available_at")
-  usedAt      DateTime? @map("used_at")
+  id           Int       @id @default(autoincrement())
+  userId       Int
+  requestedAt  DateTime
+  availableAt  DateTime
+  usedAt       DateTime?
 
-  @@map("password_resets")
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model QuizLevel {
-  id         Int     @id @default(autoincrement())
-  uuid       String  @unique @db.Char(36)
-  title      String  @db.VarChar(255)
-  levelOrder Int     @map("level_order")
-  isActive   Boolean @default(true) @map("is_active")
+  id            Int                    @id @default(autoincrement())
+  uuid          String                 @unique @db.Char(36)
+  title         String
+  levelOrder    Int
+  isActive      Boolean                @default(true)
 
-  questions        QuizQuestion[]
-  levelCompletions UserLevelCompletion[]
-
-  @@map("quiz_levels")
+  questions     QuizQuestion[]
+  completions   UserLevelCompletion[]
 }
 
 model QuizQuestion {
-  id            Int       @id @default(autoincrement())
-  quizLevelId   Int       @map("quiz_level_id")
-  quizLevel     QuizLevel @relation(fields: [quizLevelId], references: [id])
-  questionText  String    @map("question_text") @db.Text
-  answerKey     String    @map("answer_key") @db.VarChar(500)
-  questionOrder Int       @map("question_order")
+  id            Int            @id @default(autoincrement())
+  quizLevelId   Int
+  questionText  String         @db.Text
+  answerKey     String
+  questionOrder Int
 
-  progress UserProgress[]
+  quizLevel     QuizLevel      @relation(fields: [quizLevelId], references: [id], onDelete: Cascade)
 
-  @@map("quiz_questions")
+  progress      UserProgress[]
 }
 
 model UserProgress {
-  id         Int          @id @default(autoincrement())
-  userId     Int          @map("user_id")
-  user       User         @relation(fields: [userId], references: [id])
-  questionId Int          @map("question_id")
-  question   QuizQuestion @relation(fields: [questionId], references: [id])
-  passedAt   DateTime     @map("passed_at")
+  id          Int           @id @default(autoincrement())
+  userId      Int
+  questionId  Int
+  passedAt    DateTime
 
-  @@map("user_progress")
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question    QuizQuestion  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questionId])
 }
 
 model UserLevelCompletion {
-  id          Int       @id @default(autoincrement())
-  userId      Int       @map("user_id")
-  user        User      @relation(fields: [userId], references: [id])
-  quizLevelId Int       @map("quiz_level_id")
-  quizLevel   QuizLevel @relation(fields: [quizLevelId], references: [id])
-  completedAt DateTime  @map("completed_at")
+  id           Int        @id @default(autoincrement())
+  userId       Int
+  quizLevelId  Int
+  completedAt  DateTime
 
-  @@map("user_level_completion")
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quizLevel    QuizLevel  @relation(fields: [quizLevelId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, quizLevelId])
 }
 
 model Winner {
-  id         Int      @id @default(autoincrement())
-  userId     Int      @unique @map("user_id")
-  user       User     @relation(fields: [userId], references: [id])
-  finishedAt DateTime @map("finished_at")
-  rank       Int
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  finishedAt  DateTime
+  rank        Int       @unique
 
-  @@map("winners")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

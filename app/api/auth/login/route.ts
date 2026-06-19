@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createToken } from "@/lib/jwt";
-import { users } from "@/lib/mockUsers";
+import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { validateLoginServer } from "@/lib/validation";
 
@@ -26,9 +26,12 @@ export async function POST(
     const { indexNumber, password } = body;
 
     // Find user by index number
-    const user = users.find(
-      (u) => u.indexNumber === indexNumber
-    );
+    const user =
+  await prisma.user.findUnique({
+    where: {
+      indexNumber,
+    },
+  });
 
     if (!user) {
       return NextResponse.json(
@@ -43,7 +46,7 @@ export async function POST(
     // Compare password
     const isPasswordValid = await bcrypt.compare(
       password,
-      user.password
+      user.passwordHash
     );
 
     if (!isPasswordValid) {
@@ -77,7 +80,20 @@ export async function POST(
       { status: 200 }
     );
   } catch (error) {
-    console.error("Login error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("Login error:", errorMessage, error);
+    
+    // Check if it's a database connection error
+    if (errorMessage.includes("connect") || errorMessage.includes("ECONNREFUSED")) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Database connection failed. Please ensure your database is running.",
+        },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json(
       {
         success: false,

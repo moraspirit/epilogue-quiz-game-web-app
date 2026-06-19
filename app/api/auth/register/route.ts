@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { users } from "@/lib/mockUsers";
+import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { validateRegisterServer } from "@/lib/validation";
 
@@ -23,9 +23,12 @@ export async function POST(req: Request) {
     const { indexNumber, name, password } = body;
 
     // Check if user already exists
-    const existingUser = users.find(
-      (u) => u.indexNumber === indexNumber
-    );
+    const existingUser =
+  await prisma.user.findUnique({
+    where: {
+      indexNumber,
+    },
+  });
 
     if (existingUser) {
       return NextResponse.json(
@@ -50,14 +53,14 @@ export async function POST(req: Request) {
     );
 
     // Create new user (in production, this would be saved to database)
-    const newUser = {
-      id: users.length + 1,
-      indexNumber,
-      name,
-      password: hashedPassword,
-    };
-
-    users.push(newUser);
+    const newUser =
+      await prisma.user.create({
+        data: {
+          indexNumber,
+          name,
+          passwordHash: hashedPassword,
+        },
+    });
 
     return NextResponse.json(
       {
@@ -72,7 +75,20 @@ export async function POST(req: Request) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("Register error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("Register error:", errorMessage, error);
+    
+    // Check if it's a database connection error
+    if (errorMessage.includes("connect") || errorMessage.includes("ECONNREFUSED")) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Database connection failed. Please ensure your database is running.",
+        },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json(
       {
         success: false,

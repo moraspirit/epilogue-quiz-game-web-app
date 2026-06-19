@@ -4,7 +4,7 @@ import { verifyToken, extractTokenFromHeader } from '@/lib/jwt';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { uuid: string } }
+  { params }: { params: Promise<{ uuid: string }> }
 ) {
   try {
     // Extract and verify JWT token
@@ -29,7 +29,7 @@ export async function GET(
     }
 
     const userId = payload.userId as number;
-    const uuid = params.uuid;
+    const { uuid } = await params;
 
     // Find the quiz level by UUID
     const quizLevel = await prisma.quizLevel.findUnique({

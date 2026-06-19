@@ -4,8 +4,11 @@ import {
   JWTPayload,
 } from "jose";
 
+const JWT_SECRET =
+  process.env.JWT_SECRET || "fallback-secret-for-development-only-replace-in-production";
+
 const secret = new TextEncoder().encode(
-  "my-secret-key"
+  JWT_SECRET
 );
 
 export async function createToken(
