@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              Int                   @id @default(autoincrement())
+  indexNumber     String                @unique
+  name            String
+  passwordHash    String
+  createdAt       DateTime              @default(now())
+
+  passwordResets  PasswordReset[]
+  progress        UserProgress[]
+  completedLevels UserLevelCompletion[]
+  winners         Winner[]
+}
+
+model PasswordReset {
+  id           Int       @id @default(autoincrement())
+  userId       Int
+  requestedAt  DateTime
+  availableAt  DateTime
+  usedAt       DateTime?
+
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model QuizLevel {
+  id            Int                    @id @default(autoincrement())
+  uuid          String                 @unique @db.Char(36)
+  title         String
+  levelOrder    Int
+  isActive      Boolean                @default(true)
+
+  questions     QuizQuestion[]
+  completions   UserLevelCompletion[]
+}
+
+model QuizQuestion {
+  id            Int            @id @default(autoincrement())
+  quizLevelId   Int
+  questionText  String         @db.Text
+  answerKey     String
+  questionOrder Int
+
+  quizLevel     QuizLevel      @relation(fields: [quizLevelId], references: [id], onDelete: Cascade)
+
+  progress      UserProgress[]
+}
+
+model UserProgress {
+  id          Int           @id @default(autoincrement())
+  userId      Int
+  questionId  Int
+  passedAt    DateTime
+
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question    QuizQuestion  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questionId])
+}
+
+model UserLevelCompletion {
+  id           Int        @id @default(autoincrement())
+  userId       Int
+  quizLevelId  Int
+  completedAt  DateTime
+
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quizLevel    QuizLevel  @relation(fields: [quizLevelId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, quizLevelId])
+}
+
+model Winner {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  finishedAt  DateTime
+  rank        Int       @unique
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
