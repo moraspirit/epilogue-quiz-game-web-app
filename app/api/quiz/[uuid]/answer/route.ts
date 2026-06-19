@@ -92,7 +92,7 @@ export async function POST(
 
     const allAnsweredCorrectly = (
       await Promise.all(
-        allQuestionsInLevel.map((q) =>
+        allQuestionsInLevel.map((q: typeof allQuestionsInLevel[0]) =>
           prisma.userProgress.findFirst({
             where: {
               userId,
@@ -122,7 +122,7 @@ export async function POST(
 
       const allLevelsCompleted = (
         await Promise.all(
-          allLevels.map((l) =>
+          allLevels.map((l: typeof allLevels[0]) =>
             prisma.userLevelCompletion.findFirst({
               where: {
                 userId,
