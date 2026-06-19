@@ -56,13 +56,13 @@ export default function Home() {
                 Register to compete
                 <span className="ml-3 text-xl">→</span>
               </Link>
-              <a
-                href="#leaderboard"
+              <Link
+                href="/leaderboard"
                 className="inline-flex min-h-14 items-center justify-center rounded-2xl border border-white/10 bg-white/8 px-7 text-base font-bold text-white transition hover:bg-white/12 focus:outline-none focus:ring-2 focus:ring-violet-300"
               >
                 <span className="mr-3 text-[var(--accent)]">★</span>
                 View leaderboard
-              </a>
+              </Link>
             </div>
           </div>
 

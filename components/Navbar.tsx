@@ -71,13 +71,13 @@ export default function Navbar() {
             <NavIcon type="quiz" />
             Quiz
           </Link>
-          <a
-            href="#leaderboard"
+          <Link
+            href="/leaderboard"
             className="inline-flex items-center gap-2 transition hover:text-white"
           >
             <NavIcon type="leaderboard" />
             Leaderboard
-          </a>
+          </Link>
           <Link
             href="/register"
             className="rounded-2xl bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] px-6 py-3 text-white shadow-lg shadow-violet-500/20 transition hover:scale-[1.02]"
