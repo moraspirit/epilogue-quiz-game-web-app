@@ -31,3 +31,9 @@ export async function verifyToken(
 
   return payload;
 }
+
+export function extractTokenFromHeader(authHeader: string | null): string | null {
+  if (!authHeader) return null;
+  const parts = authHeader.split(' ');
+  return parts.length === 2 && parts[0] === 'Bearer' ? parts[1] : null;
+}
