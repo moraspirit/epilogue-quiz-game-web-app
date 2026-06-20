@@ -104,7 +104,7 @@ export default function LoginPage() {
         localStorage.setItem("token", data.token);
         // Redirect after 1 second
         setTimeout(() => {
-          window.location.href = "/";
+          window.location.href = "/frontPage";
         }, 1000);
       } else {
         setMessage({

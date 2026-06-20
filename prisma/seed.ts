@@ -161,16 +161,16 @@ async function main() {
   // User 1 completed Level 1 (answered all 3 questions correctly)
   await prisma.userProgress.createMany({
     data: [
-      { userId: user1.id, questionId: q1_1.id, passedAt: new Date('2024-01-10T10:00:00') },
-      { userId: user1.id, questionId: q1_2.id, passedAt: new Date('2024-01-10T10:05:00') },
-      { userId: user1.id, questionId: q1_3.id, passedAt: new Date('2024-01-10T10:10:00') },
+      { userId: user1.id, questionId: q1_1.id, passedAt: new Date('2024-01-10T10:00:00'), isCorrect: true },
+      { userId: user1.id, questionId: q1_2.id, passedAt: new Date('2024-01-10T10:05:00'), isCorrect: true },
+      { userId: user1.id, questionId: q1_3.id, passedAt: new Date('2024-01-10T10:10:00'), isCorrect: true },
       // User 1 answered 2 questions in Level 2
-      { userId: user1.id, questionId: q2_1.id, passedAt: new Date('2024-01-10T10:30:00') },
-      { userId: user1.id, questionId: q2_2.id, passedAt: new Date('2024-01-10T10:35:00') },
+      { userId: user1.id, questionId: q2_1.id, passedAt: new Date('2024-01-10T10:30:00'), isCorrect: true },
+      { userId: user1.id, questionId: q2_2.id, passedAt: new Date('2024-01-10T10:35:00'), isCorrect: true },
       // User 2 completed Level 1
-      { userId: user2.id, questionId: q1_1.id, passedAt: new Date('2024-01-12T14:00:00') },
-      { userId: user2.id, questionId: q1_2.id, passedAt: new Date('2024-01-12T14:05:00') },
-      { userId: user2.id, questionId: q1_3.id, passedAt: new Date('2024-01-12T14:10:00') },
+      { userId: user2.id, questionId: q1_1.id, passedAt: new Date('2024-01-12T14:00:00'), isCorrect: true },
+      { userId: user2.id, questionId: q1_2.id, passedAt: new Date('2024-01-12T14:05:00'), isCorrect: true },
+      { userId: user2.id, questionId: q1_3.id, passedAt: new Date('2024-01-12T14:10:00'), isCorrect: true },
     ],
   });
   console.log('✅ Created user progress records');
@@ -227,12 +227,12 @@ async function main() {
   // User 3 is the second winner (complete all levels later)
   await prisma.userProgress.createMany({
     data: [
-      { userId: user3.id, questionId: q1_1.id, passedAt: new Date('2024-01-11T09:00:00') },
-      { userId: user3.id, questionId: q1_2.id, passedAt: new Date('2024-01-11T09:05:00') },
-      { userId: user3.id, questionId: q1_3.id, passedAt: new Date('2024-01-11T09:10:00') },
-      { userId: user3.id, questionId: q2_1.id, passedAt: new Date('2024-01-11T09:30:00') },
-      { userId: user3.id, questionId: q2_2.id, passedAt: new Date('2024-01-11T09:35:00') },
-      { userId: user3.id, questionId: q3_1.id, passedAt: new Date('2024-01-11T10:00:00') },
+      { userId: user3.id, questionId: q1_1.id, passedAt: new Date('2024-01-11T09:00:00'), isCorrect: true },
+      { userId: user3.id, questionId: q1_2.id, passedAt: new Date('2024-01-11T09:05:00'), isCorrect: true },
+      { userId: user3.id, questionId: q1_3.id, passedAt: new Date('2024-01-11T09:10:00'), isCorrect: true },
+      { userId: user3.id, questionId: q2_1.id, passedAt: new Date('2024-01-11T09:30:00'), isCorrect: true },
+      { userId: user3.id, questionId: q2_2.id, passedAt: new Date('2024-01-11T09:35:00'), isCorrect: true },
+      { userId: user3.id, questionId: q3_1.id, passedAt: new Date('2024-01-11T10:00:00'), isCorrect: true },
     ],
   });
 
