@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const userId = payload.userId as number;
+    const userId = payload.id as number;
 
     const allLevels = await prisma.quizLevel.findMany({
       where: { isActive: true },

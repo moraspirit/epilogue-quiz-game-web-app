@@ -28,7 +28,7 @@ export async function POST(
       );
     }
 
-    const userId = payload.userId as number;
+    const userId = payload.id as number;
     const { uuid } = await params;
     const body = await req.json();
     const { answer } = body;

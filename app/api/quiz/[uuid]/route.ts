@@ -28,7 +28,7 @@ export async function GET(
       );
     }
 
-    const userId = payload.userId as number;
+    const userId = payload.id as number;
     const { uuid } = await params;
 
     // Find the quiz level by UUID (each level = exactly one question)
