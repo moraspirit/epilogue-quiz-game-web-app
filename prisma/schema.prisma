@@ -63,6 +63,7 @@ model UserProgress {
   userId         Int
   questionId     Int
   passedAt       DateTime
+  isCorrect      Boolean       @default(false)
   currentLevel   Int           @default(1)
   totalScore     Int           @default(0)
   status         String        @default("Idle")

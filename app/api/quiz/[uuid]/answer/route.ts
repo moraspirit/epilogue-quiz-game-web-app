@@ -28,21 +28,27 @@ export async function POST(
       );
     }
 
-    const userId = payload.userId as number;
+    const userId = payload.id as number;
     const { uuid } = await params;
     const body = await req.json();
-    const { questionId, answer } = body;
+    const { answer } = body;
 
-    if (!questionId || !answer) {
+    if (typeof answer !== 'string' || answer.trim() === '') {
       return NextResponse.json(
-        { error: 'Missing questionId or answer' },
+        { error: 'Missing or invalid answer' },
         { status: 400 }
       );
     }
 
-    // Find the quiz level
+    // Find the quiz level (each level = exactly one question)
     const quizLevel = await prisma.quizLevel.findUnique({
       where: { uuid },
+      include: {
+        questions: {
+          orderBy: { questionOrder: 'asc' },
+          take: 1,
+        },
+      },
     });
 
     if (!quizLevel) {
@@ -52,15 +58,51 @@ export async function POST(
       );
     }
 
-    // Find the question
-    const question = await prisma.quizQuestion.findUnique({
-      where: { id: questionId },
+    if (!quizLevel.isActive) {
+      return NextResponse.json(
+        { error: 'This quiz level is not active' },
+        { status: 403 }
+      );
+    }
+
+    const question = quizLevel.questions[0];
+    if (!question) {
+      return NextResponse.json(
+        { error: 'This level has no question configured' },
+        { status: 500 }
+      );
+    }
+
+    // SECURITY CHECK: previous levels must be completed first
+    const previousLevels = await prisma.quizLevel.findMany({
+      where: {
+        levelOrder: { lt: quizLevel.levelOrder },
+        isActive: true,
+      },
     });
 
-    if (!question || question.quizLevelId !== quizLevel.id) {
+    for (const prevLevel of previousLevels) {
+      const completion = await prisma.userLevelCompletion.findFirst({
+        where: { userId, quizLevelId: prevLevel.id },
+      });
+      if (!completion) {
+        return NextResponse.json(
+          { error: 'You must complete previous levels first' },
+          { status: 403 }
+        );
+      }
+    }
+
+    // ONE ATTEMPT ONLY: if this question has already been answered
+    // (right or wrong) by this user, refuse - no retries.
+    const existingProgress = await prisma.userProgress.findFirst({
+      where: { userId, questionId: question.id },
+    });
+
+    if (existingProgress) {
       return NextResponse.json(
-        { error: 'Question not found or does not belong to this level' },
-        { status: 404 }
+        { error: 'Question already answered' },
+        { status: 400 }
       );
     }
 
@@ -69,95 +111,68 @@ export async function POST(
     const normalizedAnswerKey = question.answerKey.trim().toLowerCase();
     const isCorrect = normalizedAnswer === normalizedAnswerKey;
 
-    if (!isCorrect) {
-      return NextResponse.json({
-        success: true,
-        correct: false,
-      });
-    }
+    const now = new Date();
 
-    // Answer is correct - record in user_progress
-    await prisma.userProgress.create({
-      data: {
-        userId,
-        questionId,
-        passedAt: new Date(),
-      },
-    });
-
-    // Check if all questions in this level are now passed
-    const allQuestionsInLevel = await prisma.quizQuestion.findMany({
-      where: { quizLevelId: quizLevel.id },
-    });
-
-    const allAnsweredCorrectly = (
-      await Promise.all(
-        allQuestionsInLevel.map((q: typeof allQuestionsInLevel[0]) =>
-          prisma.userProgress.findFirst({
-            where: {
-              userId,
-              questionId: q.id,
-            },
-          })
-        )
-      )
-    ).every((p) => p !== null);
-
-    let levelComplete = false;
-    if (allAnsweredCorrectly) {
-      // Level is complete - record in user_level_completion
-      await prisma.userLevelCompletion.create({
+    // Record the attempt AND mark the level complete together - since
+    // each level is exactly one question, attempting the question
+    // immediately completes the level (correct or not).
+    await prisma.$transaction([
+      prisma.userProgress.create({
+        data: {
+          userId,
+          questionId: question.id,
+          passedAt: now,
+          isCorrect,
+        },
+      }),
+      prisma.userLevelCompletion.create({
         data: {
           userId,
           quizLevelId: quizLevel.id,
-          completedAt: new Date(),
+          completedAt: now,
         },
-      });
-      levelComplete = true;
+      }),
+    ]);
 
-      // Check if all levels are complete
-      const allLevels = await prisma.quizLevel.findMany({
-        where: { isActive: true },
-      });
+    // Check if this was the last active level - if so, compute final score
+    const allLevels = await prisma.quizLevel.findMany({
+      where: { isActive: true },
+    });
 
-      const allLevelsCompleted = (
-        await Promise.all(
-          allLevels.map((l: typeof allLevels[0]) =>
-            prisma.userLevelCompletion.findFirst({
-              where: {
-                userId,
-                quizLevelId: l.id,
-              },
-            })
-          )
+    const allLevelsCompleted = (
+      await Promise.all(
+        allLevels.map((l) =>
+          prisma.userLevelCompletion.findFirst({
+            where: { userId, quizLevelId: l.id },
+          })
         )
-      ).every((c) => c !== null);
+      )
+    ).every((c) => c !== null);
 
-      if (allLevelsCompleted) {
-        // User is a winner!
-        const winnerCount = await prisma.winner.count();
-        await prisma.winner.create({
-          data: {
-            userId,
-            finishedAt: new Date(),
-            rank: winnerCount + 1,
-          },
-        });
-
-        return NextResponse.json({
-          success: true,
-          correct: true,
-          levelComplete: true,
-          winner: true,
-        });
-      }
+    if (!allLevelsCompleted) {
+      return NextResponse.json({
+        success: true,
+        correct: isCorrect,
+        quizComplete: false,
+      });
     }
+
+    // All levels completed - calculate and return the final score.
+    // NOTE: We deliberately do NOT write to the `winners` table here.
+    // Winner is not decided live/first-to-finish - quiz takers play
+    // asynchronously at different times, so "winner" can only be
+    // determined later by an admin comparing everyone's completion
+    // time/score after the competition window closes.
+    const correctCount = await prisma.userProgress.count({
+      where: { userId, isCorrect: true },
+    });
 
     return NextResponse.json({
       success: true,
-      correct: true,
-      levelComplete,
-      winner: false,
+      correct: isCorrect,
+      quizComplete: true,
+      score: correctCount,
+      totalQuestions: allLevels.length,
     });
   } catch (error) {
     console.error('Error submitting answer:', error);

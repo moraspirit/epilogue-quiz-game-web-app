@@ -28,15 +28,16 @@ export async function GET(
       );
     }
 
-    const userId = payload.userId as number;
+    const userId = payload.id as number;
     const { uuid } = await params;
 
-    // Find the quiz level by UUID
+    // Find the quiz level by UUID (each level = exactly one question)
     const quizLevel = await prisma.quizLevel.findUnique({
       where: { uuid },
       include: {
         questions: {
           orderBy: { questionOrder: 'asc' },
+          take: 1,
           select: {
             id: true,
             questionText: true,
@@ -61,17 +62,24 @@ export async function GET(
       );
     }
 
+    const question = quizLevel.questions[0];
+    if (!question) {
+      return NextResponse.json(
+        { error: 'This level has no question configured' },
+        { status: 500 }
+      );
+    }
+
     // SECURITY CHECK: Verify user has completed all previous levels
     const previousLevels = await prisma.quizLevel.findMany({
       where: {
         levelOrder: {
-          lt: quizLevel.levelOrder, // Less than current level
+          lt: quizLevel.levelOrder,
         },
         isActive: true,
       },
     });
 
-    // Check if user has completed all previous levels
     for (const prevLevel of previousLevels) {
       const completion = await prisma.userLevelCompletion.findFirst({
         where: {
@@ -79,7 +87,6 @@ export async function GET(
           quizLevelId: prevLevel.id,
         },
       });
-
       if (!completion) {
         return NextResponse.json(
           { error: 'You must complete previous levels first' },
@@ -88,7 +95,33 @@ export async function GET(
       }
     }
 
-    // Return the level with questions (without answer keys)
+    // Already completed THIS level? Don't re-serve the question -
+    // one attempt only, right or wrong, no retries.
+    const alreadyCompleted = await prisma.userLevelCompletion.findFirst({
+      where: {
+        userId,
+        quizLevelId: quizLevel.id,
+      },
+    });
+
+    if (alreadyCompleted) {
+      // Tell the frontend this level is done so it can redirect forward
+      // rather than show the question again.
+      const progress = await prisma.userProgress.findFirst({
+        where: { userId, questionId: question.id },
+        select: { isCorrect: true },
+      });
+
+      return NextResponse.json(
+        {
+          error: 'Level already completed',
+          alreadyCompleted: true,
+          isCorrect: progress?.isCorrect ?? null,
+        },
+        { status: 409 }
+      );
+    }
+
     return NextResponse.json({
       success: true,
       level: {
@@ -96,7 +129,11 @@ export async function GET(
         uuid: quizLevel.uuid,
         title: quizLevel.title,
         levelOrder: quizLevel.levelOrder,
-        questions: quizLevel.questions,
+        question: {
+          id: question.id,
+          questionText: question.questionText,
+          questionOrder: question.questionOrder,
+        },
       },
     });
   } catch (error) {
