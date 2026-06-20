@@ -15,7 +15,7 @@ interface QuizLevel {
   uuid: string;
   title: string;
   levelOrder: number;
-  questions: Question[];
+  question: Question;
 }
 
 export default function QuizPage() {
@@ -24,7 +24,6 @@ export default function QuizPage() {
   const uuid = params.uuid as string;
 
   const [level, setLevel] = useState<QuizLevel | null>(null);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answer, setAnswer] = useState('');
   const [feedback, setFeedback] = useState<{
     message: string;
@@ -32,15 +31,14 @@ export default function QuizPage() {
   }>({ message: '', type: null });
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [isWinner, setIsWinner] = useState(false);
-  const [levelComplete, setLevelComplete] = useState(false);
+  const [quizComplete, setQuizComplete] = useState(false);
   const [score, setScore] = useState(0);
   const [totalQuestions, setTotalQuestions] = useState(0);
   const [error, setError] = useState('');
 
-  // Fetch quiz level on mount
+  // Fetch this level's question on mount
   useEffect(() => {
-    const fetchQuiz = async () => {
+    const fetchLevel = async () => {
       try {
         setLoading(true);
         const token = localStorage.getItem('token');
@@ -61,26 +59,20 @@ export default function QuizPage() {
           return;
         }
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch quiz');
+        const data = await response.json();
+
+        // Level already completed - this question can't be re-attempted.
+        // Send the user onward instead of showing it again.
+        if (response.status === 409 && data.alreadyCompleted) {
+          router.push('/levels');
+          return;
         }
 
-        const data = await response.json();
-        setLevel(data.level);
-        
-        // Find the first unanswered question
-        const answeredIds = new Set(data.progress?.map((p: any) => p.questionId) || []);
-        const nextIndex = data.level.questions.findIndex((q: Question) => !answeredIds.has(q.id));
-        
-        if (nextIndex !== -1) {
-          setCurrentQuestionIndex(nextIndex);
-        } else {
-          // All questions answered, set level complete
-          setLevelComplete(true);
-          setScore(data.progress?.filter((p: any) => p.isCorrect).length || 0);
-          setTotalQuestions(data.level.questions.length);
-          if (data.winner) setIsWinner(true);
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to fetch quiz');
         }
+
+        setLevel(data.level);
         setError('');
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
@@ -89,16 +81,13 @@ export default function QuizPage() {
       }
     };
 
-    fetchQuiz();
+    fetchLevel();
   }, [uuid, router]);
-
-  const currentQuestion = level?.questions[currentQuestionIndex];
-  const isLastQuestion = currentQuestionIndex === (level?.questions.length ?? 0) - 1;
 
   const handleSubmitAnswer = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!answer.trim() || !currentQuestion) return;
+    if (!answer.trim() || !level) return;
 
     try {
       setSubmitting(true);
@@ -111,45 +100,54 @@ export default function QuizPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          questionId: currentQuestion.id,
           answer: answer.trim(),
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to submit answer');
-      }
-
       const data = await response.json();
 
-      if (data.error) {
-        throw new Error(data.error);
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit answer');
       }
 
+      // Per the rules: wrong answer shows ONLY "wrong answer" - nothing else
       if (data.correct) {
         setFeedback({ message: '✅ Correct Answer!', type: 'success' });
       } else {
-        setFeedback({ message: '❌ Wrong answer.', type: 'error' });
+        setFeedback({ message: 'Wrong answer.', type: 'error' });
       }
 
-      if (data.levelComplete) {
+      if (data.quizComplete) {
+        // This was the last level - show final score screen
         setScore(data.score);
         setTotalQuestions(data.totalQuestions);
-        
         setTimeout(() => {
-          if (data.winner) {
-            setIsWinner(true);
-          } else {
-            setLevelComplete(true);
-          }
-        }, 1500);
+          setQuizComplete(true);
+        }, 1200);
       } else {
-        // Move to next question regardless of correct or wrong
-        setTimeout(() => {
-          setCurrentQuestionIndex(currentQuestionIndex + 1);
-          setAnswer('');
-          setFeedback({ message: '', type: null });
-        }, 1500);
+        // Move on to the next level, regardless of correct/wrong -
+        // one attempt only, then forward. Ask the server which level
+        // is next, since the frontend doesn't track level order itself.
+        setTimeout(async () => {
+          try {
+            const nextRes = await fetch('/api/quiz/next', {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            const nextData = await nextRes.json();
+
+            if (nextData.done) {
+              setScore(nextData.score);
+              setTotalQuestions(nextData.totalQuestions);
+              setQuizComplete(true);
+            } else if (nextData.nextLevelUuid) {
+              router.push(`/quiz/${nextData.nextLevelUuid}`);
+            } else {
+              router.push('/levels');
+            }
+          } catch {
+            router.push('/levels');
+          }
+        }, 1200);
       }
     } catch (err) {
       setFeedback({
@@ -217,7 +215,7 @@ export default function QuizPage() {
     );
   }
 
-  if (isWinner) {
+  if (quizComplete) {
     return (
       <main className="min-h-screen overflow-hidden bg-[#0d1729] text-[var(--text)]">
         <Navbar />
@@ -228,8 +226,8 @@ export default function QuizPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.504-1.125-1.125-1.125h-2.25a1.125 1.125 0 00-1.125 1.125v3.375m9 0V9m-9 0V3.75m.75.75h4.5m-5.25 6H7.5m9 0h3.75M12 9a3 3 0 100-6 3 3 0 000 6zM9.75 15.75h4.5" />
               </svg>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white mb-3">🏆 You Completed All Levels!</h1>
-            <p className="text-slate-300 font-medium mb-1">Congratulations! You have successfully completed all quiz levels.</p>
+            <h1 className="text-2xl sm:text-3xl font-black text-white mb-3">🎉 Quiz Complete!</h1>
+            <p className="text-slate-300 font-medium mb-1">You have answered all the questions.</p>
             <div className="my-4 inline-block px-4 py-2 bg-[var(--primary)]/20 border border-[var(--primary)] rounded-xl">
               <p className="text-lg font-bold text-[var(--primary)]">Score: {score} / {totalQuestions}</p>
             </div>
@@ -246,60 +244,29 @@ export default function QuizPage() {
     );
   }
 
-  if (levelComplete) {
-    return (
-      <main className="min-h-screen overflow-hidden bg-[#0d1729] text-[var(--text)]">
-        <Navbar />
-        <section className="flex min-h-[calc(100vh-5rem)] items-center justify-center bg-[linear-gradient(115deg,#0d1729_0%,#10172a_58%,#221f4d_100%)] px-3 py-6">
-          <div className="w-full max-w-md rounded-2xl border border-green-500/30 bg-[#172136]/92 p-6 sm:p-9 shadow-2xl text-center">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-green-500/10 border border-green-500/30 text-green-400 mb-6">
-              <svg className="size-12 animate-bounce" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white mb-2">🎉 Level Complete!</h1>
-            <p className="text-slate-300 font-medium mb-4">{level.title} is complete.</p>
-            <div className="mb-6 inline-block px-4 py-2 bg-[var(--primary)]/20 border border-[var(--primary)] rounded-xl">
-              <p className="text-lg font-bold text-[var(--primary)]">Score: {score} / {totalQuestions}</p>
-            </div>
-            <button
-              onClick={() => router.push('/levels')}
-              className="inline-flex h-12 px-6 items-center justify-center rounded-xl bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] text-white font-bold transition hover:opacity-90 w-full"
-            >
-              Back to Levels
-            </button>
-          </div>
-        </section>
-      </main>
-    );
-  }
-
   return (
     <main className="min-h-screen overflow-hidden bg-[#0d1729] text-[var(--text)]">
       <Navbar />
 
       <section className="flex min-h-[calc(100vh-5rem)] flex-col items-center justify-center bg-[linear-gradient(115deg,#0d1729_0%,#10172a_58%,#221f4d_100%)] px-3 py-6 sm:px-5 sm:py-12">
         <div className="w-full max-w-2xl rounded-2xl sm:rounded-3xl border border-white/10 bg-[#172136]/92 p-5 sm:p-9 shadow-2xl shadow-slate-950/35">
-          
+
           {/* Level details & header */}
           <div className="border-b border-white/10 pb-4 mb-6">
             <span className="inline-block px-3 py-1 bg-[var(--primary)]/20 rounded-full text-xs sm:text-sm font-semibold text-[var(--primary)] mb-2">
               Level {level.levelOrder}
             </span>
             <h1 className="text-xl sm:text-2xl font-black text-white">{level.title}</h1>
-            <p className="text-xs sm:text-sm text-slate-400 mt-1">
-              Question {currentQuestionIndex + 1} of {level.questions.length}
-            </p>
           </div>
 
           {/* Question Text */}
           <div className="bg-[#141d31] border border-white/5 rounded-xl sm:rounded-2xl p-5 sm:p-7 mb-6">
             <h2 className="text-base sm:text-xl font-bold leading-relaxed text-white">
-              {currentQuestion?.questionText}
+              {level.question?.questionText}
             </h2>
           </div>
 
-          {/* Feedback messages */}
+          {/* Feedback messages - wrong answer shows ONLY this message, nothing else */}
           {feedback.message && (
             <div
               className={`rounded-xl px-4 py-3 text-sm font-bold mb-6 border transition-all ${
@@ -323,7 +290,7 @@ export default function QuizPage() {
                 placeholder="Type your answer here..."
                 value={answer}
                 onChange={(e) => setAnswer(e.target.value)}
-                disabled={submitting}
+                disabled={submitting || !!feedback.message}
                 autoFocus
                 className="mt-2 flex h-12 sm:h-14 w-full rounded-lg sm:rounded-2xl border border-slate-600/55 bg-[#172238] px-4 text-sm sm:text-lg font-medium text-white placeholder-slate-400 focus:border-blue-400 focus:outline-none transition"
               />
@@ -331,43 +298,12 @@ export default function QuizPage() {
 
             <button
               type="submit"
-              disabled={submitting || !answer.trim()}
+              disabled={submitting || !answer.trim() || !!feedback.message}
               className="h-12 sm:h-14 w-full rounded-lg sm:rounded-2xl bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] text-base sm:text-lg font-black text-white shadow-xl shadow-blue-950/30 transition hover:scale-[1.01] focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? 'Submitting...' : 'Submit Answer'}
             </button>
           </form>
-
-          {/* Question Indicator progress bar/dots */}
-          <div className="mt-8 border-t border-white/10 pt-6">
-            <div className="flex justify-between items-center text-xs sm:text-sm font-semibold text-slate-400 mb-3">
-              <span>Progress</span>
-              <span>
-                {currentQuestionIndex + 1} / {level.questions.length} Questions
-              </span>
-            </div>
-            
-            <div className="flex flex-wrap gap-2">
-              {level.questions.map((_, idx) => {
-                const isCurrent = idx === currentQuestionIndex;
-                const isAnswered = idx < currentQuestionIndex;
-                return (
-                  <div
-                    key={idx}
-                    className={`h-9 flex-1 min-w-[32px] max-w-[48px] flex items-center justify-center rounded-lg font-bold border transition ${
-                      isCurrent
-                        ? 'border-[var(--primary)] bg-[var(--primary)]/20 text-white font-extrabold shadow'
-                        : isAnswered
-                        ? 'border-green-500/40 bg-green-500/10 text-green-400'
-                        : 'border-slate-700 bg-slate-800/40 text-slate-500'
-                    }`}
-                  >
-                    {idx + 1}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
 
           {/* Exit/Levels button */}
           <div className="mt-8 flex justify-center border-t border-white/5 pt-4">
