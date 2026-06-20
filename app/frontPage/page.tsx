@@ -68,7 +68,7 @@ export default function FrontPage() {
         const data = await response.json();
         if (data.success && data.levels && data.levels.length > 0) {
           // The API returns active levels ordered by levelOrder ascending.
-          // So levels[0] is the first level.
+          // So levels[0] is the first level. //done
           setFirstLevelUuid(data.levels[0].uuid);
         } else {
           setError("No quiz levels are currently available.");
