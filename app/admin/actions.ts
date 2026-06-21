@@ -3,11 +3,30 @@
 // import { PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
+import { verifyToken } from '@/lib/jwt';
 
-// const prisma = new PrismaClient();
+async function checkAdminAuth() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('admin_session')?.value;
 
+  if (!token) {
+    throw new Error('Unauthorized: No admin session found');
+  }
+
+  try {
+    const payload = await verifyToken(token);
+    if (payload.role !== 'admin') {
+      throw new Error('Forbidden: Not an administrator');
+    }
+  } catch (error) {
+    throw new Error('Unauthorized: Invalid session token');
+  }
+}
 
 export async function addQuestion(formData: FormData) {
+  await checkAdminAuth();
+
   const quizLevelId = Number(formData.get('quizLevelId'));
   const questionText = formData.get('questionText') as string;
   const answerKey = formData.get('answerKey') as string;
@@ -25,6 +44,8 @@ export async function addQuestion(formData: FormData) {
 }
 
 export async function deleteQuestion(formData: FormData) {
+  await checkAdminAuth();
+
   const questionId = Number(formData.get('questionId'));
 
   if (!questionId) {

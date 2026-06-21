@@ -3,6 +3,14 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
 export async function POST() {
+  // Prevent seeding in production
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json(
+      { success: false, message: "Seeding is disabled in production" },
+      { status: 403 }
+    );
+  }
+
   try {
     // Check if test users already exist
     const existingUsers = await prisma.user.count();
