@@ -5,6 +5,7 @@ export async function GET() {
   try {
     // Fetch all users with their latest progress
     const users = await prisma.user.findMany({
+      where: { role: 'USER' },
       include: {
         progress: {
           orderBy: {
@@ -29,7 +30,7 @@ export async function GET() {
         return {
           id: user.id,
           name: user.name,
-          indexNumber: user.indexNumber,
+          indexNumber: user.indexNumber ?? '',
           level: userProgress?.currentLevel || 1,
           score: userProgress?.totalScore || 0,
           status: (userProgress?.status as

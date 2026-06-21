@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { randomUUID } from 'crypto';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
@@ -27,6 +28,18 @@ async function main() {
     ],
   });
   console.log(`✅ Created ${indices.count} pre-registered indices`);
+
+  console.log('👑 Adding admin user...');
+  const adminPasswordHash = await bcrypt.hash('admin123', 10);
+  const adminUser = await prisma.user.create({
+    data: {
+      username: 'admin',
+      name: 'System Administrator',
+      passwordHash: adminPasswordHash,
+      role: 'ADMIN',
+    },
+  });
+  console.log('✅ Created admin user');
 
   console.log('👥 Adding users...');
   const user1 = await prisma.user.create({

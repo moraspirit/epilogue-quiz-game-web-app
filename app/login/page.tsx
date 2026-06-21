@@ -184,7 +184,7 @@ export default function LoginPage() {
                   type="text"
                   placeholder="e.g. CS2024042"
                   value={indexNumber}
-                  onChange={(e) => setIndexNumber(e.target.value.toUpperCase())}
+                  onChange={(e) => setIndexNumber(e.target.value)}
                   className="h-full min-w-0 flex-1 bg-transparent text-sm sm:text-lg font-medium text-white outline-none placeholder:text-slate-400"
                 />
               </span>

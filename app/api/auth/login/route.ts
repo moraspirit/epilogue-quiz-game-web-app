@@ -29,11 +29,11 @@ export async function POST(
     const user =
   await prisma.user.findUnique({
     where: {
-      indexNumber,
+      indexNumber: indexNumber.toUpperCase(),
     },
   });
 
-    if (!user) {
+    if (!user || user.role !== 'USER') {
       return NextResponse.json(
         {
           success: false,
@@ -62,7 +62,7 @@ export async function POST(
     // Create JWT token
     const token = await createToken({
       id: user.id,
-      indexNumber: user.indexNumber,
+      indexNumber: user.indexNumber ?? "",
       name: user.name,
     });
 
@@ -73,7 +73,7 @@ export async function POST(
         token,
         user: {
           id: user.id,
-          indexNumber: user.indexNumber,
+          indexNumber: user.indexNumber ?? "",
           name: user.name,
         },
       },

@@ -28,6 +28,17 @@ export async function POST() {
     ];
 
     const hashedPassword = await bcrypt.hash("password123", 10);
+    const adminHashedPassword = await bcrypt.hash("admin123", 10);
+
+    // Create system administrator
+    await prisma.user.create({
+      data: {
+        username: "admin",
+        name: "System Administrator",
+        passwordHash: adminHashedPassword,
+        role: "ADMIN",
+      },
+    });
 
     const createdUsers = await Promise.all(
       testUsers.map((user) =>
@@ -81,7 +92,7 @@ export async function POST() {
           users: createdUsers.map((u) => ({
             id: u.id,
             name: u.name,
-            indexNumber: u.indexNumber,
+            indexNumber: u.indexNumber ?? "",
           })),
         },
       },

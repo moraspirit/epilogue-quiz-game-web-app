@@ -21,12 +21,13 @@ export async function POST(req: Request) {
     }
 
     const { indexNumber, name, password } = body;
+    const normalizedIndexNumber = indexNumber.toUpperCase();
 
     // Check if user already exists
     const existingUser =
   await prisma.user.findUnique({
     where: {
-      indexNumber,
+      indexNumber: normalizedIndexNumber,
     },
   });
 
@@ -56,7 +57,7 @@ export async function POST(req: Request) {
     const newUser =
       await prisma.user.create({
         data: {
-          indexNumber,
+          indexNumber: normalizedIndexNumber,
           name,
           passwordHash: hashedPassword,
         },
@@ -68,7 +69,7 @@ export async function POST(req: Request) {
         message: "Registration successful",
         user: {
           id: newUser.id,
-          indexNumber: newUser.indexNumber,
+          indexNumber: newUser.indexNumber ?? "",
           name: newUser.name,
         },
       },

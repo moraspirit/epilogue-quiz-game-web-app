@@ -31,9 +31,13 @@ export async function deleteQuestion(formData: FormData) {
     throw new Error('Question ID is required for deletion.');
   }
 
-  await prisma.quizQuestion.delete({
-    where: { id: questionId },
-  });
+  try {
+    await prisma.quizQuestion.delete({
+      where: { id: questionId },
+    });
+  } catch (error) {
+    console.warn(`Question ID ${questionId} not found or already deleted.`);
+  }
 
   revalidatePath('/admin');
 }

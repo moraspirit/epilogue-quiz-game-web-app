@@ -14,14 +14,21 @@ model PreRegisteredIndex {
 
 model User {
   id              Int                   @id @default(autoincrement())
-  indexNumber     String                @unique
+  indexNumber     String?               @unique
+  username        String?               @unique
   name            String
   passwordHash    String
+  role            Role                  @default(USER)
   createdAt       DateTime              @default(now())
   passwordResets  PasswordReset[]
   completedLevels UserLevelCompletion[]
   progress        UserProgress[]
   winners         Winner[]
+}
+
+enum Role {
+  USER
+  ADMIN
 }
 
 model PasswordReset {

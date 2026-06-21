@@ -3,9 +3,9 @@ export const ValidationRules = {
   indexNumber: {
     minLength: 4,
     maxLength: 20,
-    pattern: /^[A-Z0-9]+$/,
+    pattern: /^[a-zA-Z0-9]+$/,
     errorMessage:
-      "Index number must be 4-20 characters, uppercase letters and numbers only",
+      "Index number must be 4-20 characters, letters and numbers only",
   },
   name: {
     minLength: 2,

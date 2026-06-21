@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic';
 async function getAdminData() {
   const [users, winners, levels, totalProgress, quizLevels, allQuestions] = await Promise.all([
     prisma.user.findMany({
+      where: { role: 'USER' },
       include: {
         progress: { include: { question: true } },
         completedLevels: { include: { quizLevel: true } },
@@ -38,7 +39,7 @@ export default async function AdminDashboard() {
     const isWinner = user.winners.length > 0;
     return {
       id: user.id,
-      indexNumber: user.indexNumber,
+      indexNumber: user.indexNumber ?? '',
       name: user.name,
       status: isWinner ? 'Completed 🏆' : (latestProgress?.status || 'Idle'),
       maxLevel: latestProgress?.currentLevel || 1,
