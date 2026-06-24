@@ -226,7 +226,7 @@ export default function QuizPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.504-1.125-1.125-1.125h-2.25a1.125 1.125 0 00-1.125 1.125v3.375m9 0V9m-9 0V3.75m.75.75h4.5m-5.25 6H7.5m9 0h3.75M12 9a3 3 0 100-6 3 3 0 000 6zM9.75 15.75h4.5" />
               </svg>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white mb-3">🎉 Quiz Complete!</h1>
+            <h1 className="text-2xl sm:text-3xl font-black text-white mb-3">Epilogue Quiz Complete!</h1>
             <p className="text-slate-300 font-medium mb-1">You have answered all the questions.</p>
             <div className="my-4 inline-block px-4 py-2 bg-[var(--primary)]/20 border border-[var(--primary)] rounded-xl">
               <p className="text-lg font-bold text-[var(--primary)]">Score: {score} / {totalQuestions}</p>

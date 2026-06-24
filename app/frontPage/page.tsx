@@ -107,7 +107,7 @@ export default function FrontPage() {
             <QuestIcon />
             <div className="text-left">
               <h1 className="text-xl sm:text-2xl font-black leading-tight text-white">
-                Login Successful
+                Ready for Epilogue Quiz
               </h1>
               <p className="text-xs sm:text-sm font-medium text-slate-400">
                 You are ready to play!

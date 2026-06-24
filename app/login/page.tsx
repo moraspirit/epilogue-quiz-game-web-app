@@ -133,7 +133,7 @@ export default function LoginPage() {
             <QuestIcon />
             <div>
               <h1 className="text-lg sm:text-2xl font-black leading-tight text-white">
-                Welcome back
+                Sign In to Epilogue Quiz
               </h1>
               <p className="mt-0.5 sm:mt-1 text-xs sm:text-base font-medium text-slate-400">
                 Sign in with your index

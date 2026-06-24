@@ -30,9 +30,9 @@ export default function Home() {
             </p>
 
             <h1 className="text-5xl font-black leading-[1.02] tracking-normal text-white sm:text-6xl lg:text-7xl">
-              Race the levels.
+              Epilogue Quiz
               <span className="block bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] bg-clip-text text-transparent">
-                Claim the crown.
+                Race the levels. Claim the crown.
               </span>
             </h1>
 

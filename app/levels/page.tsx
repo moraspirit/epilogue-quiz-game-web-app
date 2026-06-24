@@ -77,7 +77,7 @@ export default function LevelsPage() {
       <div className="border-b border-gray-700">
         <div className="max-w-6xl mx-auto px-4 py-6 flex justify-between items-center">
           <div>
-            <h1 className="text-4xl font-bold mb-2">Quiz Levels</h1>
+            <h1 className="text-4xl font-bold mb-2">Epilogue Quiz Levels</h1>
             <p className="text-gray-400">Complete all levels to win!</p>
           </div>
           <button

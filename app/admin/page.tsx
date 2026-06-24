@@ -1,6 +1,10 @@
 import { prisma } from '@/lib/prisma';
 import { addQuestion, deleteQuestion } from './actions';
 import ParticipantTable from './ParticipantTable';
+import { createPageMetadata } from '@/lib/siteMetadata';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = createPageMetadata('Admin Dashboard');
 
 export const dynamic = 'force-dynamic';
 
@@ -60,7 +64,7 @@ export default async function AdminDashboard() {
         {/* Header */}
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70">
-            Admin Management
+            Epilogue Quiz Admin
           </h1>
           <p className="text-sm text-slate-400 mt-1">
             Monitor real-time participant performance and manage game content.

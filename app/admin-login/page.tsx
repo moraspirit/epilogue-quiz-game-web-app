@@ -16,7 +16,7 @@ export default function AdminLoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-[#0d1729] text-white">
       <div className="max-w-sm w-full rounded-2xl border border-white/10 bg-[#172136]/92 p-8 shadow-2xl shadow-slate-950/35">
-        <h1 className="text-2xl font-black leading-tight text-center mb-2">Master Control</h1>
+        <h1 className="text-2xl font-black leading-tight text-center mb-2">Epilogue Quiz Admin Login</h1>
         <p className="text-center text-sm font-medium text-slate-400 mb-6">Enter administrative credentials</p>
         
         {error && (

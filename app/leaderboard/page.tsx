@@ -126,7 +126,7 @@ export default function LeaderboardPage() {
           <div className="mb-8 flex items-start justify-between sm:mb-12">
             <div>
               <h1 className="text-3xl font-black text-white sm:text-4xl">
-                Leaderboard
+                Epilogue Quiz Leaderboard
               </h1>
               <p className="mt-2 text-sm font-medium text-slate-400 sm:text-base">
                 Top 20 players — first to finish wins the prize.
