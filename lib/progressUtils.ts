@@ -3,24 +3,12 @@ import { prisma } from "@/lib/prisma";
 export interface UpdateProgressParams {
   userId: number;
   questionId: number;
-  currentLevel: number;
   totalScore: number;
   status?: "Playing" | "Completed" | "Idle";
 }
 
-/**
- * Update user progress in the quiz
- */
-export async function updateUserProgress(
-  params: UpdateProgressParams
-) {
-  const {
-    userId,
-    questionId,
-    currentLevel,
-    totalScore,
-    status = "Playing",
-  } = params;
+export async function updateUserProgress(params: UpdateProgressParams) {
+  const { userId, questionId, totalScore, status = "Playing" } = params;
 
   try {
     const progress = await prisma.userProgress.upsert({
@@ -31,7 +19,6 @@ export async function updateUserProgress(
         },
       },
       update: {
-        currentLevel,
         totalScore,
         status,
         updatedAt: new Date(),
@@ -40,7 +27,6 @@ export async function updateUserProgress(
         userId,
         questionId,
         passedAt: new Date(),
-        currentLevel,
         totalScore,
         status,
       },
@@ -62,9 +48,6 @@ export async function updateUserProgress(
   }
 }
 
-/**
- * Get user's current progress
- */
 export async function getUserProgress(userId: number) {
   try {
     const progress = await prisma.userProgress.findMany({
@@ -78,7 +61,6 @@ export async function getUserProgress(userId: number) {
     return {
       success: true,
       data: {
-        currentLevel: userProgress?.currentLevel || 1,
         totalScore: userProgress?.totalScore || 0,
         status: userProgress?.status || "Idle",
       },
@@ -95,38 +77,32 @@ export async function getUserProgress(userId: number) {
   }
 }
 
-/**
- * Complete a level for a user
- */
 export async function completeLevelForUser(
   userId: number,
   quizLevelId: number
 ) {
   try {
-    const levelCompletion =
-      await prisma.userLevelCompletion.upsert({
-        where: {
-          userId_quizLevelId: {
-            userId,
-            quizLevelId,
-          },
-        },
-        update: {
-          completedAt: new Date(),
-        },
-        create: {
+    const levelCompletion = await prisma.userLevelCompletion.upsert({
+      where: {
+        userId_quizLevelId: {
           userId,
           quizLevelId,
-          completedAt: new Date(),
         },
-      });
+      },
+      update: {
+        completedAt: new Date(),
+      },
+      create: {
+        userId,
+        quizLevelId,
+        completedAt: new Date(),
+      },
+    });
 
-    // Update user as winner if they completed all levels
     const allLevels = await prisma.quizLevel.findMany();
-    const completedLevels =
-      await prisma.userLevelCompletion.findMany({
-        where: { userId },
-      });
+    const completedLevels = await prisma.userLevelCompletion.findMany({
+      where: { userId },
+    });
 
     if (completedLevels.length === allLevels.length) {
       const winnersCount = await prisma.winner.count();

@@ -10,6 +10,7 @@ import {
   getAnswerWordLengths,
   getCurrentQuestionForLevel,
   getLevelQuestions,
+  getUserQuizStats,
   hasCompletedPreviousLevels,
   isLevelFullyCompleted,
 } from "@/lib/quizProgress";
@@ -142,8 +143,11 @@ export async function GET(
       );
     }
 
+    const stats = await getUserQuizStats(userId);
+
     return NextResponse.json({
       success: true,
+      score: stats.score,
       level: {
         id: quizLevel.id,
         uuid: quizLevel.uuid,

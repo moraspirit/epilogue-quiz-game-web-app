@@ -6,6 +6,7 @@ import {
   cacheGet,
   cacheSet,
 } from "@/lib/cache";
+import { getUserQuizStats } from "@/lib/quizProgress";
 
 const TOP_LIMIT = 20;
 
@@ -13,7 +14,6 @@ type LeaderboardEntry = {
   id: number;
   name: string;
   indexNumber: string;
-  level: number;
   score: number;
   status: "Playing" | "Completed" | "Idle";
   rank: number;
@@ -22,37 +22,30 @@ type LeaderboardEntry = {
 async function buildLeaderboard(): Promise<LeaderboardEntry[]> {
   const users = await prisma.user.findMany({
     where: { role: "USER" },
-    include: {
-      progress: {
-        orderBy: {
-          updatedAt: "desc",
-        },
-        take: 1,
-      },
+    select: {
+      id: true,
+      name: true,
+      indexNumber: true,
     },
   });
 
-  return users
-    .map((user) => {
-      const userProgress = user.progress[0];
+  const entries = await Promise.all(
+    users.map(async (user) => {
+      const stats = await getUserQuizStats(user.id);
+
       return {
         id: user.id,
         name: user.name,
         indexNumber: user.indexNumber ?? "",
-        level: userProgress?.currentLevel || 1,
-        score: userProgress?.totalScore || 0,
-        status:
-          (userProgress?.status as "Playing" | "Completed" | "Idle") ||
-          "Idle",
+        score: stats.score,
+        status: stats.status,
         rank: 0,
       };
     })
-    .sort((a, b) => {
-      if (b.score !== a.score) {
-        return b.score - a.score;
-      }
-      return b.level - a.level;
-    })
+  );
+
+  return entries
+    .sort((a, b) => b.score - a.score)
     .map((entry, index) => ({
       ...entry,
       rank: index + 1,

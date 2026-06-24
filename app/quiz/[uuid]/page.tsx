@@ -98,7 +98,10 @@ export default function QuizPage() {
       }
 
       setLevel(data.level);
-      setError('');
+      if (typeof data.score === "number") {
+        setScore(data.score);
+      }
+      setError("");
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -151,6 +154,9 @@ export default function QuizPage() {
 
       if (data.correct) {
         setFeedback({ message: 'Correct answer!', type: 'success' });
+        if (typeof data.score === 'number') {
+          setScore(data.score);
+        }
       } else {
         setFeedback({ message: 'Wrong answer.', type: 'error' });
         setAnswer('');
@@ -287,12 +293,11 @@ export default function QuizPage() {
       <section className="flex min-h-[calc(100vh-5rem)] flex-col items-center justify-center bg-[linear-gradient(115deg,#0d1729_0%,#10172a_58%,#221f4d_100%)] px-3 py-6 sm:px-5 sm:py-12">
         <div className="w-full max-w-2xl rounded-2xl sm:rounded-3xl border border-white/10 bg-[#172136]/92 p-5 sm:p-9 shadow-2xl shadow-slate-950/35">
           <div className="border-b border-white/10 pb-4 mb-6">
-            <span className="inline-block px-3 py-1 bg-[var(--primary)]/20 rounded-full text-xs sm:text-sm font-semibold text-[var(--primary)] mb-2">
-              Level {level.levelOrder}
-            </span>
             <h1 className="text-xl sm:text-2xl font-black text-white">{level.title}</h1>
             <p className="mt-2 text-sm text-slate-400">
               Question {level.question.questionOrder} of {level.totalQuestions}
+              <span className="mx-2">·</span>
+              Score: {score}
             </p>
           </div>
 

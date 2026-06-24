@@ -82,10 +82,8 @@ export async function POST() {
             userId: progress.userId,
             questionId: question.id,
             passedAt: new Date(),
-            currentLevel: progress.level,
             totalScore: progress.score,
-            status:
-              progress.level === 5 ? "Completed" : "Playing",
+            status: progress.level === 5 ? "Completed" : "Playing",
           },
         });
       }

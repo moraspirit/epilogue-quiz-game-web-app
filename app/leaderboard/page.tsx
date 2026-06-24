@@ -7,7 +7,6 @@ interface LeaderboardEntry {
   id: number;
   name: string;
   indexNumber: string;
-  level: number;
   score: number;
   status: "Playing" | "Completed" | "Idle";
   rank: number;
@@ -65,9 +64,6 @@ function LeaderboardRow({
         >
           {entry.status}
         </span>
-      </td>
-      <td className="px-4 py-4 text-sm font-bold text-blue-400 sm:px-6">
-        L{entry.level}
       </td>
       <td className="px-4 py-4 text-right text-sm font-bold text-white sm:px-6">
         {entry.score}
@@ -170,19 +166,11 @@ export default function LeaderboardPage() {
                     <p className="mt-1 text-sm text-slate-400">
                       #{champion.indexNumber}
                     </p>
-                    <div className="mt-3 flex gap-4 text-sm sm:text-base">
-                      <div>
-                        <span className="font-bold text-blue-400">Lv </span>
-                        <span className="font-bold text-white">
-                          {champion.level}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="font-bold text-green-400">Score </span>
-                        <span className="font-bold text-white">
-                          {champion.score}
-                        </span>
-                      </div>
+                    <div className="mt-3 text-sm sm:text-base">
+                      <span className="font-bold text-green-400">Score </span>
+                      <span className="font-bold text-white">
+                        {champion.score}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -200,9 +188,6 @@ export default function LeaderboardPage() {
                       </th>
                       <th className="px-4 py-4 text-left text-xs font-bold text-slate-400 sm:px-6">
                         STATUS
-                      </th>
-                      <th className="px-4 py-4 text-left text-xs font-bold text-slate-400 sm:px-6">
-                        LEVEL
                       </th>
                       <th className="px-4 py-4 text-right text-xs font-bold text-slate-400 sm:px-6">
                         SCORE

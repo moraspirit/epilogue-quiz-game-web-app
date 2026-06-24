@@ -7,7 +7,6 @@ type Participant = {
   indexNumber: string;
   name: string;
   status: string;
-  maxLevel: number;
   accumulatedScore: number;
   totalCorrect: number;
   joinedAt: string;
@@ -16,7 +15,6 @@ type Participant = {
 export default function ParticipantTable({ participants }: { participants: Participant[] }) {
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Instantly filter participants as the admin types
   const filtered = participants.filter(
     (p) =>
       p.indexNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -43,7 +41,6 @@ export default function ParticipantTable({ participants }: { participants: Parti
               <th className="p-4 font-medium text-slate-400 uppercase tracking-wider text-xs">Index Number</th>
               <th className="p-4 font-medium text-slate-400 uppercase tracking-wider text-xs">Name</th>
               <th className="p-4 font-medium text-slate-400 uppercase tracking-wider text-xs">Current Status</th>
-              <th className="p-4 font-medium text-slate-400 uppercase tracking-wider text-xs">Max Level</th>
               <th className="p-4 font-medium text-slate-400 uppercase tracking-wider text-xs">Total Score</th>
               <th className="p-4 font-medium text-slate-400 uppercase tracking-wider text-xs">Correct Ans</th>
               <th className="p-4 font-medium text-slate-400 uppercase tracking-wider text-xs">Joined At</th>
@@ -52,7 +49,7 @@ export default function ParticipantTable({ participants }: { participants: Parti
           <tbody className="divide-y divide-white/5">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="p-8 text-center text-slate-500">
+                <td colSpan={6} className="p-8 text-center text-slate-500">
                   No participants found matching "{searchTerm}".
                 </td>
               </tr>
@@ -74,7 +71,6 @@ export default function ParticipantTable({ participants }: { participants: Parti
                       {user.status}
                     </span>
                   </td>
-                  <td className="p-4 text-slate-300">Level {user.maxLevel}</td>
                   <td className="p-4 font-bold text-white">{user.accumulatedScore}</td>
                   <td className="p-4 text-slate-400">{user.totalCorrect} answers</td>
                   <td className="p-4 text-slate-500 text-xs">{user.joinedAt}</td>

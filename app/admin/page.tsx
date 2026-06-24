@@ -46,8 +46,7 @@ export default async function AdminDashboard() {
       indexNumber: user.indexNumber ?? '',
       name: user.name,
       status: isWinner ? 'Completed 🏆' : (latestProgress?.status || 'Idle'),
-      maxLevel: latestProgress?.currentLevel || 1,
-      accumulatedScore: latestProgress?.totalScore || 0,
+      accumulatedScore: latestProgress?.totalScore || user.progress.filter((p) => p.isCorrect).length,
       totalCorrect: user.progress.filter((p) => p.isCorrect).length,
       joinedAt: new Date(user.createdAt).toLocaleDateString(),
     };
@@ -76,7 +75,7 @@ export default async function AdminDashboard() {
           {[
             { label: 'Total Registrations', value: users.length },
             { label: 'Question Attempts', value: totalAttempts },
-            { label: 'Configured Levels', value: totalLevels },
+            { label: 'Total Questions', value: allQuestions.length },
             { label: 'Game Winners 🏆', value: totalWinners },
           ].map((stat, idx) => (
             <div key={idx} className="bg-[#181D2F]/80 backdrop-blur-md border border-white/5 rounded-2xl p-5 shadow-lg">
@@ -94,11 +93,11 @@ export default async function AdminDashboard() {
             <h2 className="text-lg font-semibold mb-5 text-white">Add Quiz Question</h2>
             <form action={addQuestion} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Target Level</label>
+                <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Question Group</label>
                 <select name="quizLevelId" required className="w-full bg-[#0A0E17] border border-white/10 text-slate-200 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#4A72FF]/50 transition-all">
-                  <option value="">Select a Level...</option>
+                  <option value="">Select a group...</option>
                   {quizLevels.map((level) => (
-                    <option key={level.id} value={level.id}>Level {level.levelOrder}: {level.title}</option>
+                    <option key={level.id} value={level.id}>{level.title}</option>
                   ))}
                 </select>
               </div>
@@ -132,7 +131,7 @@ export default async function AdminDashboard() {
               <table className="w-full text-left border-collapse text-sm">
                 <thead className="sticky top-0 backdrop-blur-xl bg-[#181D2F]/90 z-10 border-b border-white/5">
                   <tr>
-                    <th className="p-4 font-medium text-slate-400 uppercase tracking-wider text-xs">Lvl</th>
+                    <th className="p-4 font-medium text-slate-400 uppercase tracking-wider text-xs">Group</th>
                     <th className="p-4 font-medium text-slate-400 uppercase tracking-wider text-xs">Order</th>
                     <th className="p-4 font-medium text-slate-400 uppercase tracking-wider text-xs">Question</th>
                     <th className="p-4 font-medium text-slate-400 uppercase tracking-wider text-xs">Answer</th>
@@ -147,7 +146,7 @@ export default async function AdminDashboard() {
                   ) : (
                     allQuestions.map((q) => (
                       <tr key={q.id} className="hover:bg-white/[0.02] transition-colors group">
-                        <td className="p-4 font-semibold text-slate-200">{q.quizLevel.levelOrder}</td>
+                        <td className="p-4 font-semibold text-slate-200">{q.quizLevel.title}</td>
                         <td className="p-4 text-slate-400">#{q.questionOrder}</td>
                         <td className="p-4 max-w-[200px] truncate text-slate-300" title={q.questionText}>{q.questionText}</td>
                         <td className="p-4 font-mono text-xs text-[#8C52FF] bg-[#8C52FF]/10 rounded px-2 py-1 w-fit inline-block mt-3 ml-4">{q.answerKey}</td>

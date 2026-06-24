@@ -219,6 +219,56 @@ export async function getQuizScoreSummary(userId: number) {
   return { correctCount, totalQuestions };
 }
 
+export async function getUserQuizStats(userId: number) {
+  const { correctCount } = await getQuizScoreSummary(userId);
+  const levels = await getActiveLevels();
+
+  let status: "Playing" | "Completed" | "Idle" = "Idle";
+
+  if (correctCount > 0) {
+    status = "Playing";
+  }
+
+  const allComplete =
+    levels.length > 0 &&
+    (
+      await Promise.all(
+        levels.map((level) => isLevelFullyCompleted(userId, level.id))
+      )
+    ).every(Boolean);
+
+  if (allComplete) {
+    status = "Completed";
+  }
+
+  return {
+    score: correctCount,
+    status,
+  };
+}
+
+export async function syncUserProgressStats(
+  userId: number,
+  questionId: number
+) {
+  const stats = await getUserQuizStats(userId);
+
+  await prisma.userProgress.update({
+    where: {
+      userId_questionId: {
+        userId,
+        questionId,
+      },
+    },
+    data: {
+      totalScore: stats.score,
+      status: stats.status,
+    },
+  });
+
+  return stats;
+}
+
 export async function getNextPlayableLevel(userId: number) {
   const levels = await getActiveLevels();
 

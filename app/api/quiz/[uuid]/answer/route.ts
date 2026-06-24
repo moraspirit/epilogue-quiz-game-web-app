@@ -13,6 +13,7 @@ import {
   isLevelFullyCompleted,
   markLevelCompletedIfReady,
   normalizeAnswer,
+  syncUserProgressStats,
 } from "@/lib/quizProgress";
 
 export async function POST(
@@ -162,6 +163,8 @@ export async function POST(
       },
     });
 
+    const stats = await syncUserProgressStats(userId, question.id);
+
     await invalidateUserProgressCache(userId);
     await invalidateLeaderboardCache();
 
@@ -176,10 +179,10 @@ export async function POST(
       return NextResponse.json({
         success: true,
         correct: true,
-        blocked: false,
         hasMoreQuestionsInLevel: true,
         levelCompleted: false,
         quizComplete: false,
+        score: stats.score,
       });
     }
 
@@ -187,10 +190,10 @@ export async function POST(
       return NextResponse.json({
         success: true,
         correct: true,
-        blocked: false,
         hasMoreQuestionsInLevel: false,
         levelCompleted: false,
         quizComplete: false,
+        score: stats.score,
       });
     }
 
@@ -208,10 +211,10 @@ export async function POST(
       return NextResponse.json({
         success: true,
         correct: true,
-        blocked: false,
         hasMoreQuestionsInLevel: false,
         levelCompleted: true,
         quizComplete: false,
+        score: stats.score,
       });
     }
 
@@ -220,7 +223,6 @@ export async function POST(
     return NextResponse.json({
       success: true,
       correct: true,
-      blocked: false,
       hasMoreQuestionsInLevel: false,
       levelCompleted: true,
       quizComplete: true,
