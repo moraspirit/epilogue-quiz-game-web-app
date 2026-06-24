@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createToken } from "@/lib/jwt";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { validateLoginServer } from "@/lib/validation";
+import { validateLoginServer, normalizeIndexNumber } from "@/lib/validation";
 
 export async function POST(
   req: Request
@@ -24,12 +24,13 @@ export async function POST(
     }
 
     const { indexNumber, password } = body;
+    const normalizedIndexNumber = normalizeIndexNumber(indexNumber);
 
     // Find user by index number
     const user =
   await prisma.user.findUnique({
     where: {
-      indexNumber: indexNumber.toUpperCase(),
+      indexNumber: normalizedIndexNumber,
     },
   });
 

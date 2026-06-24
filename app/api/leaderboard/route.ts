@@ -13,10 +13,13 @@ const TOP_LIMIT = 20;
 type LeaderboardEntry = {
   id: number;
   name: string;
-  indexNumber: string;
   score: number;
   status: "Playing" | "Completed" | "Idle";
   rank: number;
+};
+
+type LeaderboardEntryWithIndex = LeaderboardEntry & {
+  indexNumber: string;
 };
 
 async function buildLeaderboard(): Promise<LeaderboardEntry[]> {
@@ -25,7 +28,6 @@ async function buildLeaderboard(): Promise<LeaderboardEntry[]> {
     select: {
       id: true,
       name: true,
-      indexNumber: true,
     },
   });
 
@@ -36,7 +38,6 @@ async function buildLeaderboard(): Promise<LeaderboardEntry[]> {
       return {
         id: user.id,
         name: user.name,
-        indexNumber: user.indexNumber ?? "",
         score: stats.score,
         status: stats.status,
         rank: 0,
@@ -64,7 +65,8 @@ export async function GET(req: Request) {
 
     const topLeaderboard = rankedLeaderboard.slice(0, TOP_LIMIT);
 
-    let currentUser: LeaderboardEntry | null = null;
+    let currentUser: LeaderboardEntryWithIndex | null = null;
+    let viewer: { userId: number; indexNumber: string } | null = null;
     const authHeader = req.headers.get("authorization");
     const token = extractTokenFromHeader(authHeader);
 
@@ -74,10 +76,25 @@ export async function GET(req: Request) {
         const userId = Number(payload.id);
 
         if (!Number.isNaN(userId)) {
+          const userRecord = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { indexNumber: true },
+          });
+
+          if (userRecord?.indexNumber) {
+            viewer = {
+              userId,
+              indexNumber: userRecord.indexNumber,
+            };
+          }
+
           const userEntry = rankedLeaderboard.find((entry) => entry.id === userId);
 
           if (userEntry && userEntry.rank > TOP_LIMIT) {
-            currentUser = userEntry;
+            currentUser = {
+              ...userEntry,
+              indexNumber: userRecord?.indexNumber ?? "",
+            };
           }
         }
       } catch {
@@ -89,6 +106,7 @@ export async function GET(req: Request) {
       success: true,
       data: topLeaderboard,
       currentUser,
+      viewer,
     });
   } catch (error) {
     const errorMessage =

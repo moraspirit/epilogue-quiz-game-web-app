@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { validateRegisterServer } from "@/lib/validation";
+import { validateRegisterServer, normalizeIndexNumber } from "@/lib/validation";
 
 export async function POST(req: Request) {
   try {
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
     }
 
     const { indexNumber, name, password } = body;
-    const normalizedIndexNumber = indexNumber.toUpperCase();
+    const normalizedIndexNumber = normalizeIndexNumber(indexNumber);
 
     // Check if user already exists
     const existingUser =

@@ -6,10 +6,15 @@ import Navbar from "@/components/Navbar";
 interface LeaderboardEntry {
   id: number;
   name: string;
-  indexNumber: string;
   score: number;
   status: "Playing" | "Completed" | "Idle";
   rank: number;
+  indexNumber?: string;
+}
+
+interface ViewerInfo {
+  userId: number;
+  indexNumber: string;
 }
 
 function TrophyIcon() {
@@ -28,9 +33,11 @@ function TrophyIcon() {
 function LeaderboardRow({
   entry,
   highlight = false,
+  showIndexNumber = false,
 }: {
   entry: LeaderboardEntry;
   highlight?: boolean;
+  showIndexNumber?: boolean;
 }) {
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -55,7 +62,9 @@ function LeaderboardRow({
       <td className="px-4 py-4 sm:px-6">
         <div>
           <p className="text-sm font-bold text-white">{entry.name}</p>
-          <p className="text-xs text-slate-400">#{entry.indexNumber}</p>
+          {showIndexNumber && entry.indexNumber && (
+            <p className="text-xs text-slate-400">#{entry.indexNumber}</p>
+          )}
         </div>
       </td>
       <td className="px-4 py-4 sm:px-6">
@@ -75,6 +84,7 @@ function LeaderboardRow({
 export default function LeaderboardPage() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [currentUser, setCurrentUser] = useState<LeaderboardEntry | null>(null);
+  const [viewer, setViewer] = useState<ViewerInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -101,6 +111,7 @@ export default function LeaderboardPage() {
       const data = await response.json();
       setLeaderboard(data.data || []);
       setCurrentUser(data.currentUser || null);
+      setViewer(data.viewer || null);
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "An error occurred";
@@ -163,9 +174,11 @@ export default function LeaderboardPage() {
                     <h2 className="text-xl font-black text-white sm:text-2xl">
                       {champion.name}
                     </h2>
-                    <p className="mt-1 text-sm text-slate-400">
-                      #{champion.indexNumber}
-                    </p>
+                    {viewer?.userId === champion.id && (
+                      <p className="mt-1 text-sm text-slate-400">
+                        #{viewer.indexNumber}
+                      </p>
+                    )}
                     <div className="mt-3 text-sm sm:text-base">
                       <span className="font-bold text-green-400">Score </span>
                       <span className="font-bold text-white">
@@ -196,7 +209,17 @@ export default function LeaderboardPage() {
                   </thead>
                   <tbody>
                     {leaderboard.map((entry) => (
-                      <LeaderboardRow key={entry.id} entry={entry} />
+                      <LeaderboardRow
+                        key={entry.id}
+                        entry={{
+                          ...entry,
+                          indexNumber:
+                            viewer?.userId === entry.id
+                              ? viewer.indexNumber
+                              : undefined,
+                        }}
+                        showIndexNumber={viewer?.userId === entry.id}
+                      />
                     ))}
                   </tbody>
                 </table>
@@ -210,7 +233,11 @@ export default function LeaderboardPage() {
                   <div className="overflow-x-auto rounded-2xl border border-blue-500/30 bg-[#172136]/60 backdrop-blur">
                     <table className="w-full">
                       <tbody>
-                        <LeaderboardRow entry={currentUser} highlight />
+                        <LeaderboardRow
+                          entry={currentUser}
+                          highlight
+                          showIndexNumber
+                        />
                       </tbody>
                     </table>
                   </div>

@@ -209,7 +209,7 @@ export default function RegisterPage() {
                 <FieldIcon type="id" />
                 <input
                   type="text"
-                  placeholder="e.g. CS2024042"
+                  placeholder="e.g. 230317J"
                   value={indexNumber}
                   onChange={(e) => setIndexNumber(e.target.value)}
                   className="h-full min-w-0 flex-1 bg-transparent text-sm sm:text-lg font-medium text-white outline-none placeholder:text-slate-400"

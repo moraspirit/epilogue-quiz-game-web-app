@@ -1,11 +1,21 @@
 // Validation rules and error messages
+export const INDEX_NUMBER_PATTERN = /^(20|21|22|23|24|25|26)\d+[A-Z]$/;
+
+export function normalizeIndexNumber(indexNumber: string): string {
+  return indexNumber.trim().toUpperCase();
+}
+
+export function isValidIndexNumber(indexNumber: string): boolean {
+  return INDEX_NUMBER_PATTERN.test(normalizeIndexNumber(indexNumber));
+}
+
 export const ValidationRules = {
   indexNumber: {
     minLength: 4,
-    maxLength: 20,
-    pattern: /^[a-zA-Z0-9]+$/,
+    maxLength: 12,
+    pattern: INDEX_NUMBER_PATTERN,
     errorMessage:
-      "Index number must be 4-20 characters, letters and numbers only",
+      "Index number must start with 20–26, contain numbers, and end with a letter (e.g. 230317J)",
   },
   name: {
     minLength: 2,
@@ -42,22 +52,24 @@ export function validateLoginForm(data: LoginFormData): ValidationError[] {
   const errors: ValidationError[] = [];
 
   // Index number validation
+  const normalizedIndex = normalizeIndexNumber(data.indexNumber);
+
   if (!data.indexNumber.trim()) {
     errors.push({
       field: "indexNumber",
       message: "Index number is required",
     });
-  } else if (data.indexNumber.length < ValidationRules.indexNumber.minLength) {
+  } else if (normalizedIndex.length < ValidationRules.indexNumber.minLength) {
     errors.push({
       field: "indexNumber",
       message: `Index number must be at least ${ValidationRules.indexNumber.minLength} characters`,
     });
-  } else if (data.indexNumber.length > ValidationRules.indexNumber.maxLength) {
+  } else if (normalizedIndex.length > ValidationRules.indexNumber.maxLength) {
     errors.push({
       field: "indexNumber",
       message: `Index number must not exceed ${ValidationRules.indexNumber.maxLength} characters`,
     });
-  } else if (!ValidationRules.indexNumber.pattern.test(data.indexNumber)) {
+  } else if (!ValidationRules.indexNumber.pattern.test(normalizedIndex)) {
     errors.push({
       field: "indexNumber",
       message: ValidationRules.indexNumber.errorMessage,
@@ -85,22 +97,24 @@ export function validateRegisterForm(data: RegisterFormData): ValidationError[] 
   const errors: ValidationError[] = [];
 
   // Index number validation
+  const normalizedIndex = normalizeIndexNumber(data.indexNumber);
+
   if (!data.indexNumber.trim()) {
     errors.push({
       field: "indexNumber",
       message: "Index number is required",
     });
-  } else if (data.indexNumber.length < ValidationRules.indexNumber.minLength) {
+  } else if (normalizedIndex.length < ValidationRules.indexNumber.minLength) {
     errors.push({
       field: "indexNumber",
       message: `Index number must be at least ${ValidationRules.indexNumber.minLength} characters`,
     });
-  } else if (data.indexNumber.length > ValidationRules.indexNumber.maxLength) {
+  } else if (normalizedIndex.length > ValidationRules.indexNumber.maxLength) {
     errors.push({
       field: "indexNumber",
       message: `Index number must not exceed ${ValidationRules.indexNumber.maxLength} characters`,
     });
-  } else if (!ValidationRules.indexNumber.pattern.test(data.indexNumber)) {
+  } else if (!ValidationRules.indexNumber.pattern.test(normalizedIndex)) {
     errors.push({
       field: "indexNumber",
       message: ValidationRules.indexNumber.errorMessage,
