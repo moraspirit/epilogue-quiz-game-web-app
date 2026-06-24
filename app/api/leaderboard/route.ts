@@ -6,7 +6,8 @@ import {
   cacheGet,
   cacheSet,
 } from "@/lib/cache";
-import { getUserQuizStats } from "@/lib/quizProgress";
+import { computeQuizStatus } from "@/lib/quizProgress";
+import { getQuizStructure } from "@/lib/quizStructure";
 
 const TOP_LIMIT = 20;
 
@@ -23,27 +24,37 @@ type LeaderboardEntryWithIndex = LeaderboardEntry & {
 };
 
 async function buildLeaderboard(): Promise<LeaderboardEntry[]> {
-  const users = await prisma.user.findMany({
-    where: { role: "USER" },
-    select: {
-      id: true,
-      name: true,
-    },
-  });
+  const [users, structure, correctCounts] = await Promise.all([
+    prisma.user.findMany({
+      where: { role: "USER" },
+      select: {
+        id: true,
+        name: true,
+      },
+    }),
+    getQuizStructure(),
+    prisma.userProgress.groupBy({
+      by: ["userId"],
+      where: { isCorrect: true },
+      _count: { questionId: true },
+    }),
+  ]);
 
-  const entries = await Promise.all(
-    users.map(async (user) => {
-      const stats = await getUserQuizStats(user.id);
-
-      return {
-        id: user.id,
-        name: user.name,
-        score: stats.score,
-        status: stats.status,
-        rank: 0,
-      };
-    })
+  const scoreByUserId = new Map(
+    correctCounts.map((entry) => [entry.userId, entry._count.questionId])
   );
+
+  const entries = users.map((user) => {
+    const score = scoreByUserId.get(user.id) ?? 0;
+
+    return {
+      id: user.id,
+      name: user.name,
+      score,
+      status: computeQuizStatus(score, structure.totalQuestions),
+      rank: 0,
+    };
+  });
 
   return entries
     .sort((a, b) => b.score - a.score)

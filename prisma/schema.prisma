@@ -24,6 +24,8 @@ model User {
   completedLevels UserLevelCompletion[]
   progress        UserProgress[]
   winners         Winner[]
+
+  @@index([role])
 }
 
 enum Role {
@@ -50,6 +52,8 @@ model QuizLevel {
   isActive    Boolean               @default(true)
   questions   QuizQuestion[]
   completions UserLevelCompletion[]
+
+  @@index([isActive, levelOrder])
 }
 
 model QuizQuestion {
@@ -78,6 +82,8 @@ model UserProgress {
 
   @@unique([userId, questionId])
   @@index([questionId], map: "UserProgress_questionId_fkey")
+  @@index([userId, isCorrect])
+  @@index([userId])
 }
 
 model UserLevelCompletion {

@@ -5,13 +5,14 @@ import {
   invalidateLeaderboardCache,
   invalidateUserProgressCache,
 } from "@/lib/cache";
+import { getQuizStructure } from "@/lib/quizStructure";
 import {
-  getCurrentQuestionForLevel,
-  getActiveLevels,
-  getQuizScoreSummary,
-  hasCompletedPreviousLevels,
-  isLevelFullyCompleted,
-  markLevelCompletedIfReady,
+  computeQuizStatus,
+  getCurrentQuestionFromSnapshot,
+  hasCompletedPreviousLevelsFromSnapshot,
+  isLevelFullyCompletedFromSnapshot,
+  loadUserQuizSnapshot,
+  markLevelCompletedIfReadyFromSnapshot,
   normalizeAnswer,
   syncUserProgressStats,
 } from "@/lib/quizProgress";
@@ -64,30 +65,28 @@ export async function POST(
       );
     }
 
-    const quizLevel = await prisma.quizLevel.findUnique({
-      where: { uuid },
-      include: {
-        questions: {
-          orderBy: { questionOrder: "asc" },
-        },
-      },
-    });
+    const [structure, snapshot] = await Promise.all([
+      getQuizStructure(),
+      loadUserQuizSnapshot(userId),
+    ]);
 
-    if (!quizLevel) {
+    const level = structure.levelByUuid.get(uuid);
+
+    if (!level) {
       return NextResponse.json(
         { error: "Quiz level not found" },
         { status: 404 }
       );
     }
 
-    if (!quizLevel.isActive) {
+    if (!level.isActive) {
       return NextResponse.json(
         { error: "This quiz level is not active" },
         { status: 403 }
       );
     }
 
-    const question = quizLevel.questions.find((item) => item.id === questionId);
+    const question = level.questions.find((item) => item.id === questionId);
     if (!question) {
       return NextResponse.json(
         { error: "Question not found in this level" },
@@ -95,36 +94,29 @@ export async function POST(
       );
     }
 
-    const previousCompleted = await hasCompletedPreviousLevels(
-      userId,
-      quizLevel.levelOrder
-    );
-
-    if (!previousCompleted) {
+    if (
+      !hasCompletedPreviousLevelsFromSnapshot(
+        level.levelOrder,
+        structure,
+        snapshot.correctQuestionIds
+      )
+    ) {
       return NextResponse.json(
         { error: "You must complete previous levels first" },
         { status: 403 }
       );
     }
 
-    const existingProgress = await prisma.userProgress.findFirst({
-      where: {
-        userId,
-        questionId: question.id,
-        isCorrect: true,
-      },
-    });
-
-    if (existingProgress) {
+    if (snapshot.correctQuestionIds.has(question.id)) {
       return NextResponse.json(
         { error: "Question already answered" },
         { status: 400 }
       );
     }
 
-    const currentQuestion = await getCurrentQuestionForLevel(
-      userId,
-      quizLevel.id
+    const currentQuestion = getCurrentQuestionFromSnapshot(
+      level,
+      snapshot.correctQuestionIds
     );
 
     if (!currentQuestion || currentQuestion.id !== question.id) {
@@ -163,16 +155,28 @@ export async function POST(
       },
     });
 
-    const stats = await syncUserProgressStats(userId, question.id);
+    const updatedCorrectQuestionIds = new Set(snapshot.correctQuestionIds);
+    updatedCorrectQuestionIds.add(question.id);
+
+    const score = updatedCorrectQuestionIds.size;
+    const status = computeQuizStatus(score, structure.totalQuestions);
+    const stats = await syncUserProgressStats(userId, question.id, {
+      score,
+      status,
+    });
 
     await invalidateUserProgressCache(userId);
     await invalidateLeaderboardCache();
 
-    const levelCompleted = await markLevelCompletedIfReady(
+    const levelCompleted = await markLevelCompletedIfReadyFromSnapshot(
       userId,
-      quizLevel.id
+      level,
+      updatedCorrectQuestionIds
     );
-    const nextQuestion = await getCurrentQuestionForLevel(userId, quizLevel.id);
+    const nextQuestion = getCurrentQuestionFromSnapshot(
+      level,
+      updatedCorrectQuestionIds
+    );
     const hasMoreQuestionsInLevel = nextQuestion !== null;
 
     if (hasMoreQuestionsInLevel) {
@@ -197,15 +201,9 @@ export async function POST(
       });
     }
 
-    const allLevels = await getActiveLevels();
-    let quizComplete = true;
-
-    for (const level of allLevels) {
-      if (!(await isLevelFullyCompleted(userId, level.id))) {
-        quizComplete = false;
-        break;
-      }
-    }
+    const quizComplete = structure.levels.every((activeLevel) =>
+      isLevelFullyCompletedFromSnapshot(activeLevel, updatedCorrectQuestionIds)
+    );
 
     if (!quizComplete) {
       return NextResponse.json({
@@ -218,16 +216,14 @@ export async function POST(
       });
     }
 
-    const { correctCount, totalQuestions } = await getQuizScoreSummary(userId);
-
     return NextResponse.json({
       success: true,
       correct: true,
       hasMoreQuestionsInLevel: false,
       levelCompleted: true,
       quizComplete: true,
-      score: correctCount,
-      totalQuestions,
+      score: stats.score,
+      totalQuestions: structure.totalQuestions,
     });
   } catch (error) {
     console.error("Error submitting answer:", error);

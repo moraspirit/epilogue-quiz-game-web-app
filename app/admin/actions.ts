@@ -9,6 +9,7 @@ import {
   invalidateActiveLevelsCache,
   invalidateLeaderboardCache,
 } from '@/lib/cache';
+import { invalidateQuizStructureCache } from '@/lib/quizStructure';
 
 async function checkAdminAuth() {
   const cookieStore = await cookies();
@@ -44,6 +45,7 @@ export async function addQuestion(formData: FormData) {
     data: { quizLevelId, questionText, answerKey, questionOrder },
   });
 
+  await invalidateQuizStructureCache();
   await invalidateActiveLevelsCache();
   await invalidateLeaderboardCache();
 
@@ -67,6 +69,7 @@ export async function deleteQuestion(formData: FormData) {
     console.warn(`Question ID ${questionId} not found or already deleted.`);
   }
 
+  await invalidateQuizStructureCache();
   await invalidateActiveLevelsCache();
   await invalidateLeaderboardCache();
 

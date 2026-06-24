@@ -4,6 +4,7 @@ export const CACHE_TTL = {
   LEADERBOARD: 30,
   ACTIVE_LEVELS: 300,
   QUIZ_LEVEL: 300,
+  QUIZ_STRUCTURE: 300,
   USER_PROGRESS: 60,
 } as const;
 
