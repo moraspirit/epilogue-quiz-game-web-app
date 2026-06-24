@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Navbar from "@/components/Navbar";
+import { navigateToCurrentQuiz, setToken } from "@/lib/authClient";
 import { validateLoginForm, ValidationError } from "@/lib/validation";
 
 function QuestIcon() {
@@ -54,6 +56,7 @@ function FieldIcon({ type }: { type: "id" | "lock" }) {
 }
 
 export default function LoginPage() {
+  const router = useRouter();
   const [indexNumber, setIndexNumber] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<ValidationError[]>([]);
@@ -100,12 +103,10 @@ export default function LoginPage() {
           type: "success",
           text: "Login successful! Redirecting...",
         });
-        // Store token
-        localStorage.setItem("token", data.token);
-        // Redirect after 1 second
-        setTimeout(() => {
-          window.location.href = "/frontPage";
-        }, 1000);
+        setToken(data.token);
+        setTimeout(async () => {
+          await navigateToCurrentQuiz(router.push);
+        }, 500);
       } else {
         setMessage({
           type: "error",

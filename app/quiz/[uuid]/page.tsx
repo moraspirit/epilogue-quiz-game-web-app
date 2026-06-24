@@ -58,8 +58,6 @@ export default function QuizPage() {
         router.push(`/quiz/${nextData.nextLevelUuid}`);
         return;
       }
-
-      router.push('/levels');
     },
     [router]
   );
@@ -242,10 +240,10 @@ export default function QuizPage() {
             <h2 className="text-xl font-bold text-white mb-2">Quiz Level Not Found</h2>
             <p className="text-sm text-slate-400 mb-6">The requested level does not exist or has been deactivated.</p>
             <button
-              onClick={() => router.push('/levels')}
+              onClick={() => router.push('/')}
               className="inline-flex h-12 px-6 items-center justify-center rounded-xl bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] text-white font-bold transition hover:opacity-90"
             >
-              Back to Levels
+              Go Home
             </button>
           </div>
         </section>
@@ -349,16 +347,6 @@ export default function QuizPage() {
               {submitting ? 'Submitting...' : 'Submit Answer'}
             </button>
           </form>
-
-          <div className="mt-8 flex justify-center border-t border-white/5 pt-4">
-            <button
-              onClick={() => router.push('/levels')}
-              className="text-xs sm:text-sm font-semibold text-slate-400 hover:text-white transition"
-              type="button"
-            >
-              ← Leave Quiz & Back to Levels
-            </button>
-          </div>
         </div>
       </section>
     </main>

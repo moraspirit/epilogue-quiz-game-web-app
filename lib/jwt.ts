@@ -7,9 +7,9 @@ import {
 const JWT_SECRET =
   process.env.JWT_SECRET || "fallback-secret-for-development-only-replace-in-production";
 
-const secret = new TextEncoder().encode(
-  JWT_SECRET
-);
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "60d";
+
+const secret = new TextEncoder().encode(JWT_SECRET);
 
 export async function createToken(
   payload: JWTPayload
@@ -19,7 +19,7 @@ export async function createToken(
       alg: "HS256",
     })
     .setIssuedAt()
-    .setExpirationTime("1d")
+    .setExpirationTime(JWT_EXPIRES_IN)
     .sign(secret);
 }
 

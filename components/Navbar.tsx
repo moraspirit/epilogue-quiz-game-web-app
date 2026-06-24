@@ -1,4 +1,5 @@
 import Link from "next/link";
+import QuizNavLink from "@/components/QuizNavLink";
 
 function BrandIcon({ className = "size-11" }: { className?: string }) {
   return (
@@ -64,13 +65,7 @@ export default function Navbar() {
         </Link>
 
         <div className="hidden items-center gap-7 text-sm font-semibold text-slate-300 md:flex">
-          <Link
-            href="/login"
-            className="inline-flex items-center gap-2 transition hover:text-white"
-          >
-            <NavIcon type="quiz" />
-            Quiz
-          </Link>
+          <QuizNavLink />
           <Link
             href="/leaderboard"
             className="inline-flex items-center gap-2 transition hover:text-white"
