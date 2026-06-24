@@ -7,23 +7,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model PreRegisteredIndex {
-  id          Int    @id @default(autoincrement())
-  indexNumber String @unique
-}
-
 model User {
-  id              Int                   @id @default(autoincrement())
-  indexNumber     String?               @unique
-  username        String?               @unique
-  name            String
-  passwordHash    String
-  role            Role                  @default(USER)
-  createdAt       DateTime              @default(now())
-  passwordResets  PasswordReset[]
-  completedLevels UserLevelCompletion[]
-  progress        UserProgress[]
-  winners         Winner[]
+  id           Int            @id @default(autoincrement())
+  indexNumber  String?        @unique
+  username     String?        @unique
+  name         String
+  passwordHash String
+  role         Role           @default(USER)
+  createdAt    DateTime       @default(now())
+  progress     UserProgress[]
 
   @@index([role])
 }
@@ -33,25 +25,13 @@ enum Role {
   ADMIN
 }
 
-model PasswordReset {
-  id          Int       @id @default(autoincrement())
-  userId      Int
-  requestedAt DateTime
-  availableAt DateTime
-  usedAt      DateTime?
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId], map: "PasswordReset_userId_fkey")
-}
-
 model QuizLevel {
-  id          Int                   @id @default(autoincrement())
-  uuid        String                @unique @db.Char(36)
-  title       String
-  levelOrder  Int
-  isActive    Boolean               @default(true)
-  questions   QuizQuestion[]
-  completions UserLevelCompletion[]
+  id         Int            @id @default(autoincrement())
+  uuid       String         @unique @db.Char(36)
+  title      String
+  levelOrder Int
+  isActive   Boolean        @default(true)
+  questions  QuizQuestion[]
 
   @@index([isActive, levelOrder])
 }
@@ -69,41 +49,16 @@ model QuizQuestion {
 }
 
 model UserProgress {
-  id           Int          @id @default(autoincrement())
-  userId       Int
-  questionId   Int
-  passedAt     DateTime
-  status       String       @default("Idle")
-  totalScore   Int          @default(0)
-  updatedAt    DateTime     @updatedAt
-  isCorrect    Boolean      @default(false)
-  question     QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         Int          @id @default(autoincrement())
+  userId     Int
+  questionId Int
+  passedAt   DateTime
+  isCorrect  Boolean      @default(false)
+  question   QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, questionId])
   @@index([questionId], map: "UserProgress_questionId_fkey")
   @@index([userId, isCorrect])
   @@index([userId])
-}
-
-model UserLevelCompletion {
-  id          Int       @id @default(autoincrement())
-  userId      Int
-  quizLevelId Int
-  completedAt DateTime
-  quizLevel   QuizLevel @relation(fields: [quizLevelId], references: [id], onDelete: Cascade)
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, quizLevelId])
-  @@index([quizLevelId], map: "UserLevelCompletion_quizLevelId_fkey")
-}
-
-model Winner {
-  id         Int      @id @default(autoincrement())
-  userId     Int
-  finishedAt DateTime
-  rank       Int      @unique
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId], map: "Winner_userId_fkey")
 }

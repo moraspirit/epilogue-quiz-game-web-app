@@ -176,53 +176,6 @@ export async function getUserLevelStatus(userId: number) {
   });
 }
 
-export async function markLevelCompletedIfReadyFromSnapshot(
-  userId: number,
-  level: QuizLevelData,
-  correctQuestionIds: Set<number>
-) {
-  if (!isLevelFullyCompletedFromSnapshot(level, correctQuestionIds)) {
-    return false;
-  }
-
-  await prisma.userLevelCompletion.upsert({
-    where: {
-      userId_quizLevelId: {
-        userId,
-        quizLevelId: level.id,
-      },
-    },
-    update: {
-      completedAt: new Date(),
-    },
-    create: {
-      userId,
-      quizLevelId: level.id,
-      completedAt: new Date(),
-    },
-  });
-
-  return true;
-}
-
-export async function markLevelCompletedIfReady(
-  userId: number,
-  quizLevelId: number
-) {
-  const snapshot = await loadUserQuizSnapshot(userId);
-  const level = snapshot.structure.levelById.get(quizLevelId);
-
-  if (!level) {
-    return false;
-  }
-
-  return markLevelCompletedIfReadyFromSnapshot(
-    userId,
-    level,
-    snapshot.correctQuestionIds
-  );
-}
-
 export async function getQuizScoreSummary(userId: number) {
   const snapshot = await loadUserQuizSnapshot(userId);
 
@@ -240,29 +193,6 @@ export async function getUserQuizStats(userId: number) {
     score,
     status: computeQuizStatus(score, snapshot.structure.totalQuestions),
   };
-}
-
-export async function syncUserProgressStats(
-  userId: number,
-  questionId: number,
-  stats?: { score: number; status: "Playing" | "Completed" | "Idle" }
-) {
-  const resolvedStats = stats ?? (await getUserQuizStats(userId));
-
-  await prisma.userProgress.update({
-    where: {
-      userId_questionId: {
-        userId,
-        questionId,
-      },
-    },
-    data: {
-      totalScore: resolvedStats.score,
-      status: resolvedStats.status,
-    },
-  });
-
-  return resolvedStats;
 }
 
 export async function getNextPlayableLevel(userId: number) {

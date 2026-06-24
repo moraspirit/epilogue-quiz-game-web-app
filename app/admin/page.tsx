@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { addQuestion, deleteQuestion } from './actions';
 import ParticipantTable from './ParticipantTable';
 import { createPageMetadata } from '@/lib/siteMetadata';
+import { computeQuizStatus } from '@/lib/quizProgress';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = createPageMetadata('Admin Dashboard');
@@ -9,58 +10,77 @@ export const metadata: Metadata = createPageMetadata('Admin Dashboard');
 export const dynamic = 'force-dynamic';
 
 async function getAdminData() {
-  const [users, winners, levels, totalProgress, quizLevels, allQuestions] = await Promise.all([
-    prisma.user.findMany({
-      where: { role: 'USER' },
-      include: {
-        progress: { include: { question: true } },
-        completedLevels: { include: { quizLevel: true } },
-        winners: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    }),
-    prisma.winner.count(),
-    prisma.quizLevel.count(),
-    prisma.userProgress.count(),
-    prisma.quizLevel.findMany({
-      orderBy: { levelOrder: 'asc' },
-    }),
-    prisma.quizQuestion.findMany({
-      include: { quizLevel: true },
-      orderBy: [{ quizLevelId: 'asc' }, { questionOrder: 'asc' }],
-    }),
-  ]);
+  const [users, totalQuestions, totalProgress, quizLevels, allQuestions] =
+    await Promise.all([
+      prisma.user.findMany({
+        where: { role: 'USER' },
+        include: {
+          progress: {
+            where: { isCorrect: true },
+            select: { id: true },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.quizQuestion.count({
+        where: { quizLevel: { isActive: true } },
+      }),
+      prisma.userProgress.count({ where: { isCorrect: true } }),
+      prisma.quizLevel.findMany({
+        orderBy: { levelOrder: 'asc' },
+      }),
+      prisma.quizQuestion.findMany({
+        include: { quizLevel: true },
+        orderBy: [{ quizLevelId: 'asc' }, { questionOrder: 'asc' }],
+      }),
+    ]);
 
-  return { users, totalWinners: winners, totalLevels: levels, totalAttempts: totalProgress, quizLevels, allQuestions };
+  const totalWinners =
+    totalQuestions > 0
+      ? users.filter((user) => user.progress.length >= totalQuestions).length
+      : 0;
+
+  return {
+    users,
+    totalWinners,
+    totalQuestions,
+    totalAttempts: totalProgress,
+    quizLevels,
+    allQuestions,
+  };
 }
 
 export default async function AdminDashboard() {
-  const { users, totalWinners, totalLevels, totalAttempts, quizLevels, allQuestions } = await getAdminData();
+  const {
+    users,
+    totalWinners,
+    totalQuestions,
+    totalAttempts,
+    quizLevels,
+    allQuestions,
+  } = await getAdminData();
 
-  // Flatten the complex relational data to pass safely into the Client Component
   const tableData = users.map((user) => {
-    const latestProgress = user.progress[user.progress.length - 1];
-    const isWinner = user.winners.length > 0;
+    const totalCorrect = user.progress.length;
+    const status = computeQuizStatus(totalCorrect, totalQuestions);
+
     return {
       id: user.id,
       indexNumber: user.indexNumber ?? '',
       name: user.name,
-      status: isWinner ? 'Completed 🏆' : (latestProgress?.status || 'Idle'),
-      accumulatedScore: latestProgress?.totalScore || user.progress.filter((p) => p.isCorrect).length,
-      totalCorrect: user.progress.filter((p) => p.isCorrect).length,
+      status: status === 'Completed' ? 'Completed 🏆' : status,
+      accumulatedScore: totalCorrect,
+      totalCorrect,
       joinedAt: new Date(user.createdAt).toLocaleDateString(),
     };
   });
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-[#0A0E17] text-white p-8 z-0 font-sans">
-      {/* Ambient background glows */}
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#4A72FF] opacity-10 blur-[150px] -z-10 rounded-full pointer-events-none" />
       <div className="absolute top-[20%] right-[-10%] w-[40%] h-[60%] bg-[#8C52FF] opacity-15 blur-[150px] -z-10 rounded-full pointer-events-none" />
 
       <div className="max-w-7xl mx-auto space-y-8 relative z-10">
-        
-        {/* Header */}
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white to-white/70">
             Epilogue Quiz Admin
@@ -70,13 +90,12 @@ export default async function AdminDashboard() {
           </p>
         </div>
 
-        {/* Metrics Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: 'Total Registrations', value: users.length },
-            { label: 'Question Attempts', value: totalAttempts },
+            { label: 'Correct Answers', value: totalAttempts },
             { label: 'Total Questions', value: allQuestions.length },
-            { label: 'Game Winners 🏆', value: totalWinners },
+            { label: 'Finished Players 🏆', value: totalWinners },
           ].map((stat, idx) => (
             <div key={idx} className="bg-[#181D2F]/80 backdrop-blur-md border border-white/5 rounded-2xl p-5 shadow-lg">
               <p className="text-xs font-medium uppercase tracking-wider text-slate-400">{stat.label}</p>
@@ -85,10 +104,7 @@ export default async function AdminDashboard() {
           ))}
         </div>
 
-        {/* Content Management Section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
-          {/* Left: Add Question Form */}
           <div className="bg-[#181D2F]/80 backdrop-blur-md border border-white/5 rounded-2xl p-6 shadow-lg h-fit">
             <h2 className="text-lg font-semibold mb-5 text-white">Add Quiz Question</h2>
             <form action={addQuestion} className="space-y-4">
@@ -121,12 +137,11 @@ export default async function AdminDashboard() {
             </form>
           </div>
 
-          {/* Right: Existing Question Bank Ledger */}
           <div className="lg:col-span-2 bg-[#181D2F]/80 backdrop-blur-md border border-white/5 rounded-2xl overflow-hidden shadow-lg flex flex-col">
             <div className="p-6 border-b border-white/5">
               <h2 className="text-lg font-semibold text-white">Active Question Bank</h2>
             </div>
-            
+
             <div className="overflow-x-auto max-h-[440px] overflow-y-auto custom-scrollbar">
               <table className="w-full text-left border-collapse text-sm">
                 <thead className="sticky top-0 backdrop-blur-xl bg-[#181D2F]/90 z-10 border-b border-white/5">
@@ -167,11 +182,9 @@ export default async function AdminDashboard() {
           </div>
         </div>
 
-        {/* Live Search Component - Ensure the inner component handles dark mode classes correctly if it has its own styling */}
         <div className="bg-[#181D2F]/80 backdrop-blur-md border border-white/5 rounded-2xl p-6 shadow-lg">
            <ParticipantTable participants={tableData} />
         </div>
-
       </div>
     </div>
   );

@@ -61,29 +61,19 @@ export async function POST() {
     );
 
     // Create test progress records
-    const levels = await prisma.quizLevel.findMany();
     const questions = await prisma.quizQuestion.findMany({
       take: 5,
     });
 
-    if (questions.length > 0 && levels.length > 0) {
-      const progressData = [
-        { userId: createdUsers[0].id, score: 450, level: 5 },
-        { userId: createdUsers[1].id, score: 380, level: 4 },
-        { userId: createdUsers[2].id, score: 320, level: 3 },
-        { userId: createdUsers[3].id, score: 200, level: 2 },
-        { userId: createdUsers[4].id, score: 150, level: 1 },
-      ];
-
-      for (const progress of progressData) {
-        const question = questions[0];
+    if (questions.length > 0) {
+      for (const [index, createdUser] of createdUsers.entries()) {
+        const question = questions[Math.min(index, questions.length - 1)];
         await prisma.userProgress.create({
           data: {
-            userId: progress.userId,
+            userId: createdUser.id,
             questionId: question.id,
             passedAt: new Date(),
-            totalScore: progress.score,
-            status: progress.level === 5 ? "Completed" : "Playing",
+            isCorrect: true,
           },
         });
       }

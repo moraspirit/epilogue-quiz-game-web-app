@@ -7,14 +7,11 @@ import {
 } from "@/lib/cache";
 import { getQuizStructure } from "@/lib/quizStructure";
 import {
-  computeQuizStatus,
   getCurrentQuestionFromSnapshot,
   hasCompletedPreviousLevelsFromSnapshot,
   isLevelFullyCompletedFromSnapshot,
   loadUserQuizSnapshot,
-  markLevelCompletedIfReadyFromSnapshot,
   normalizeAnswer,
-  syncUserProgressStats,
 } from "@/lib/quizProgress";
 
 export async function POST(
@@ -157,27 +154,20 @@ export async function POST(
 
     const updatedCorrectQuestionIds = new Set(snapshot.correctQuestionIds);
     updatedCorrectQuestionIds.add(question.id);
-
     const score = updatedCorrectQuestionIds.size;
-    const status = computeQuizStatus(score, structure.totalQuestions);
-    const stats = await syncUserProgressStats(userId, question.id, {
-      score,
-      status,
-    });
 
     await invalidateUserProgressCache(userId);
     await invalidateLeaderboardCache();
 
-    const levelCompleted = await markLevelCompletedIfReadyFromSnapshot(
-      userId,
-      level,
-      updatedCorrectQuestionIds
-    );
     const nextQuestion = getCurrentQuestionFromSnapshot(
       level,
       updatedCorrectQuestionIds
     );
     const hasMoreQuestionsInLevel = nextQuestion !== null;
+    const levelCompleted = isLevelFullyCompletedFromSnapshot(
+      level,
+      updatedCorrectQuestionIds
+    );
 
     if (hasMoreQuestionsInLevel) {
       return NextResponse.json({
@@ -186,7 +176,7 @@ export async function POST(
         hasMoreQuestionsInLevel: true,
         levelCompleted: false,
         quizComplete: false,
-        score: stats.score,
+        score,
       });
     }
 
@@ -197,7 +187,7 @@ export async function POST(
         hasMoreQuestionsInLevel: false,
         levelCompleted: false,
         quizComplete: false,
-        score: stats.score,
+        score,
       });
     }
 
@@ -212,7 +202,7 @@ export async function POST(
         hasMoreQuestionsInLevel: false,
         levelCompleted: true,
         quizComplete: false,
-        score: stats.score,
+        score,
       });
     }
 
@@ -222,7 +212,7 @@ export async function POST(
       hasMoreQuestionsInLevel: false,
       levelCompleted: true,
       quizComplete: true,
-      score: stats.score,
+      score,
       totalQuestions: structure.totalQuestions,
     });
   } catch (error) {
