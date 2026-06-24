@@ -3,12 +3,6 @@ import Navbar from "@/components/Navbar";
 
 const highlights = [
   {
-    icon: "5",
-    title: "5 Levels",
-    description: "Three questions each with rising difficulty.",
-    tone: "text-[var(--primary)]",
-  },
-  {
     icon: "↟",
     title: "Answer in order",
     description: "Unlock every stage by clearing the one before it.",
@@ -56,17 +50,19 @@ export default function Home() {
                 Register to compete
                 <span className="ml-3 text-xl">→</span>
               </Link>
-              <Link
-                href="/leaderboard"
+              <a
+                href="https://epilogue.moraspirit.com/"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex min-h-14 items-center justify-center rounded-2xl border border-white/10 bg-white/8 px-7 text-base font-bold text-white transition hover:bg-white/12 focus:outline-none focus:ring-2 focus:ring-violet-300"
               >
                 <span className="mr-3 text-[var(--accent)]">★</span>
-                View leaderboard
-              </Link>
+                Buy an Epilogue Ticket
+              </a>
             </div>
           </div>
 
-          <div className="grid gap-4 pb-2 pt-10 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 pb-2 pt-10 sm:grid-cols-2">
             {highlights.map((item) => (
               <article
                 key={item.title}
