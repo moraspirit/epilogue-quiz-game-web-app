@@ -1,5 +1,8 @@
 // Validation rules and error messages
-export const INDEX_NUMBER_PATTERN = /^(20|21|22|23|24|25|26)\d+[A-Z]$/;
+
+/** 6 digits (starting 20–26) + 1 trailing letter, e.g. 230317J */
+export const INDEX_NUMBER_PATTERN = /^(20|21|22|23|24|25|26)\d{4}[A-Z]$/;
+export const INDEX_NUMBER_LENGTH = 7;
 
 export function normalizeIndexNumber(indexNumber: string): string {
   return indexNumber.trim().toUpperCase();
@@ -11,11 +14,10 @@ export function isValidIndexNumber(indexNumber: string): boolean {
 
 export const ValidationRules = {
   indexNumber: {
-    minLength: 4,
-    maxLength: 12,
+    length: INDEX_NUMBER_LENGTH,
     pattern: INDEX_NUMBER_PATTERN,
     errorMessage:
-      "Index number must start with 20–26, contain numbers, and end with a letter (e.g. 230317J)",
+      "Index number must be 6 digits followed by one letter (e.g. 230317J). Must start with 20–26.",
   },
   name: {
     minLength: 2,
@@ -47,36 +49,42 @@ export interface RegisterFormData {
   confirmPassword?: string;
 }
 
+function validateIndexNumberField(indexNumber: string): ValidationError | null {
+  const normalizedIndex = normalizeIndexNumber(indexNumber);
+
+  if (!indexNumber.trim()) {
+    return {
+      field: "indexNumber",
+      message: "Index number is required",
+    };
+  }
+
+  if (normalizedIndex.length !== ValidationRules.indexNumber.length) {
+    return {
+      field: "indexNumber",
+      message: `Index number must be exactly ${ValidationRules.indexNumber.length} characters (6 digits + 1 letter)`,
+    };
+  }
+
+  if (!ValidationRules.indexNumber.pattern.test(normalizedIndex)) {
+    return {
+      field: "indexNumber",
+      message: ValidationRules.indexNumber.errorMessage,
+    };
+  }
+
+  return null;
+}
+
 // Login validation
 export function validateLoginForm(data: LoginFormData): ValidationError[] {
   const errors: ValidationError[] = [];
 
-  // Index number validation
-  const normalizedIndex = normalizeIndexNumber(data.indexNumber);
-
-  if (!data.indexNumber.trim()) {
-    errors.push({
-      field: "indexNumber",
-      message: "Index number is required",
-    });
-  } else if (normalizedIndex.length < ValidationRules.indexNumber.minLength) {
-    errors.push({
-      field: "indexNumber",
-      message: `Index number must be at least ${ValidationRules.indexNumber.minLength} characters`,
-    });
-  } else if (normalizedIndex.length > ValidationRules.indexNumber.maxLength) {
-    errors.push({
-      field: "indexNumber",
-      message: `Index number must not exceed ${ValidationRules.indexNumber.maxLength} characters`,
-    });
-  } else if (!ValidationRules.indexNumber.pattern.test(normalizedIndex)) {
-    errors.push({
-      field: "indexNumber",
-      message: ValidationRules.indexNumber.errorMessage,
-    });
+  const indexError = validateIndexNumberField(data.indexNumber);
+  if (indexError) {
+    errors.push(indexError);
   }
 
-  // Password validation
   if (!data.password) {
     errors.push({
       field: "password",
@@ -96,32 +104,11 @@ export function validateLoginForm(data: LoginFormData): ValidationError[] {
 export function validateRegisterForm(data: RegisterFormData): ValidationError[] {
   const errors: ValidationError[] = [];
 
-  // Index number validation
-  const normalizedIndex = normalizeIndexNumber(data.indexNumber);
-
-  if (!data.indexNumber.trim()) {
-    errors.push({
-      field: "indexNumber",
-      message: "Index number is required",
-    });
-  } else if (normalizedIndex.length < ValidationRules.indexNumber.minLength) {
-    errors.push({
-      field: "indexNumber",
-      message: `Index number must be at least ${ValidationRules.indexNumber.minLength} characters`,
-    });
-  } else if (normalizedIndex.length > ValidationRules.indexNumber.maxLength) {
-    errors.push({
-      field: "indexNumber",
-      message: `Index number must not exceed ${ValidationRules.indexNumber.maxLength} characters`,
-    });
-  } else if (!ValidationRules.indexNumber.pattern.test(normalizedIndex)) {
-    errors.push({
-      field: "indexNumber",
-      message: ValidationRules.indexNumber.errorMessage,
-    });
+  const indexError = validateIndexNumberField(data.indexNumber);
+  if (indexError) {
+    errors.push(indexError);
   }
 
-  // Name validation
   if (!data.name.trim()) {
     errors.push({
       field: "name",
@@ -144,7 +131,6 @@ export function validateRegisterForm(data: RegisterFormData): ValidationError[] 
     });
   }
 
-  // Password validation
   if (!data.password) {
     errors.push({
       field: "password",
@@ -157,7 +143,6 @@ export function validateRegisterForm(data: RegisterFormData): ValidationError[] 
     });
   }
 
-  // Confirm password validation
   if (data.confirmPassword !== undefined) {
     if (!data.confirmPassword) {
       errors.push({

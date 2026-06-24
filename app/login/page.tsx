@@ -112,6 +112,9 @@ export default function LoginPage() {
           type: "error",
           text: data.message || "Login failed. Please try again.",
         });
+        if (data.errors) {
+          setErrors(data.errors);
+        }
       }
     } catch (error) {
       setMessage({
@@ -185,7 +188,12 @@ export default function LoginPage() {
                   type="text"
                   placeholder="e.g. 230317J"
                   value={indexNumber}
-                  onChange={(e) => setIndexNumber(e.target.value)}
+                  maxLength={7}
+                  autoCapitalize="characters"
+                  spellCheck={false}
+                  onChange={(e) =>
+                    setIndexNumber(e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, ""))
+                  }
                   className="h-full min-w-0 flex-1 bg-transparent text-sm sm:text-lg font-medium text-white outline-none placeholder:text-slate-400"
                 />
               </span>

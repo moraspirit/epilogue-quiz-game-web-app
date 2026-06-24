@@ -28,11 +28,11 @@ export async function POST() {
 
     // Create test users
     const testUsers = [
-      { indexNumber: "CS2024001", name: "Alice Johnson" },
-      { indexNumber: "CS2024002", name: "Bob Smith" },
-      { indexNumber: "CS2024003", name: "Carol Davis" },
-      { indexNumber: "CS2024004", name: "David Wilson" },
-      { indexNumber: "CS2024005", name: "Emma Brown" },
+      { indexNumber: "230317J", name: "Alice Johnson" },
+      { indexNumber: "240318K", name: "Bob Smith" },
+      { indexNumber: "250319L", name: "Carol Davis" },
+      { indexNumber: "260320M", name: "David Wilson" },
+      { indexNumber: "230321N", name: "Emma Brown" },
     ];
 
     const hashedPassword = await bcrypt.hash("password123", 10);
