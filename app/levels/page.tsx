@@ -10,6 +10,19 @@ interface QuizLevel {
   title: string;
   levelOrder: number;
   isActive: boolean;
+  status: 'locked' | 'available' | 'completed';
+  isUnlocked: boolean;
+}
+
+function statusLabel(status: QuizLevel['status']) {
+  switch (status) {
+    case 'completed':
+      return 'Completed';
+    case 'available':
+      return 'Available';
+    default:
+      return 'Locked';
+  }
 }
 
 export default function LevelsPage() {
@@ -19,14 +32,12 @@ export default function LevelsPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Check if user is logged in
     const token = localStorage.getItem('token');
     if (!token) {
       router.push('/login');
       return;
     }
 
-    // Fetch all levels from database
     const fetchLevels = async () => {
       try {
         setLoading(true);
@@ -44,9 +55,12 @@ export default function LevelsPage() {
         if (response.ok) {
           const data = await response.json();
           setLevels(data.levels);
+        } else {
+          setError('Failed to load levels.');
         }
       } catch (err) {
         console.error('Error fetching levels:', err);
+        setError('Failed to load levels.');
       } finally {
         setLoading(false);
       }
@@ -73,12 +87,13 @@ export default function LevelsPage() {
 
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--text)]">
-      {/* Header */}
       <div className="border-b border-gray-700">
         <div className="max-w-6xl mx-auto px-4 py-6 flex justify-between items-center">
           <div>
             <h1 className="text-4xl font-bold mb-2">Epilogue Quiz Levels</h1>
-            <p className="text-gray-400">Complete all levels to win!</p>
+            <p className="text-gray-400">
+              Complete every question in order. You can retry until you get it right.
+            </p>
           </div>
           <button
             onClick={handleLogout}
@@ -89,7 +104,6 @@ export default function LevelsPage() {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="max-w-6xl mx-auto px-4 py-12">
         {error && (
           <div className="mb-8 p-4 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400">
@@ -103,34 +117,52 @@ export default function LevelsPage() {
           </div>
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {levels.map((level) => (
-              <div
-                key={level.id}
-                className="group p-6 rounded-2xl border border-[var(--primary)]/20 bg-gradient-to-br from-[var(--primary)]/5 to-[var(--secondary)]/5 hover:border-[var(--primary)]/50 transition-all hover:shadow-lg hover:shadow-[var(--primary)]/20"
-              >
-                <div className="mb-4">
-                  <div className="inline-block px-3 py-1 bg-[var(--primary)]/20 rounded-full mb-3">
-                    <span className="text-sm font-semibold text-[var(--primary)]">Level {level.levelOrder}</span>
-                  </div>
-                  <h2 className="text-2xl font-bold mb-2 group-hover:text-[var(--primary)] transition">
-                    {level.title}
-                  </h2>
-                  <p className="text-sm text-gray-400">
-                    {level.isActive ? '✅ Active' : '🔒 Locked'}
-                  </p>
-                </div>
+            {levels.map((level) => {
+              const canPlay = level.isUnlocked && level.status === 'available';
 
-                <Link href={`/quiz/${level.uuid}`}>
-                  <button className="w-full mt-4 px-6 py-3 bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] text-white font-bold rounded-lg hover:opacity-90 transition group-hover:shadow-lg group-hover:shadow-[var(--primary)]/30">
-                    Start Level →
-                  </button>
-                </Link>
-              </div>
-            ))}
+              return (
+                <div
+                  key={level.id}
+                  className={`group p-6 rounded-2xl border transition-all ${
+                    level.status === 'completed'
+                      ? 'border-green-500/30 bg-green-500/5'
+                      : level.isUnlocked
+                        ? 'border-[var(--primary)]/20 bg-gradient-to-br from-[var(--primary)]/5 to-[var(--secondary)]/5 hover:border-[var(--primary)]/50 hover:shadow-lg hover:shadow-[var(--primary)]/20'
+                        : 'border-white/10 bg-white/5 opacity-70'
+                  }`}
+                >
+                  <div className="mb-4">
+                    <div className="inline-block px-3 py-1 bg-[var(--primary)]/20 rounded-full mb-3">
+                      <span className="text-sm font-semibold text-[var(--primary)]">
+                        Level {level.levelOrder}
+                      </span>
+                    </div>
+                    <h2 className="text-2xl font-bold mb-2 group-hover:text-[var(--primary)] transition">
+                      {level.title}
+                    </h2>
+                    <p className="text-sm text-gray-400">{statusLabel(level.status)}</p>
+                  </div>
+
+                  {canPlay ? (
+                    <Link href={`/quiz/${level.uuid}`}>
+                      <button className="w-full mt-4 px-6 py-3 bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] text-white font-bold rounded-lg hover:opacity-90 transition">
+                        Start Level →
+                      </button>
+                    </Link>
+                  ) : (
+                    <button
+                      disabled
+                      className="w-full mt-4 px-6 py-3 rounded-lg border border-white/10 bg-white/5 text-gray-500 font-bold cursor-not-allowed"
+                    >
+                      {level.status === 'completed' ? 'Completed' : 'Locked'}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 
-        {/* Back Button */}
         <div className="mt-12 text-center">
           <button
             onClick={() => router.push('/')}

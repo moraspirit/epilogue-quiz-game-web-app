@@ -5,6 +5,10 @@ import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/jwt';
+import {
+  invalidateActiveLevelsCache,
+  invalidateLeaderboardCache,
+} from '@/lib/cache';
 
 async function checkAdminAuth() {
   const cookieStore = await cookies();
@@ -40,6 +44,9 @@ export async function addQuestion(formData: FormData) {
     data: { quizLevelId, questionText, answerKey, questionOrder },
   });
 
+  await invalidateActiveLevelsCache();
+  await invalidateLeaderboardCache();
+
   revalidatePath('/admin');
 }
 
@@ -59,6 +66,9 @@ export async function deleteQuestion(formData: FormData) {
   } catch (error) {
     console.warn(`Question ID ${questionId} not found or already deleted.`);
   }
+
+  await invalidateActiveLevelsCache();
+  await invalidateLeaderboardCache();
 
   revalidatePath('/admin');
 }

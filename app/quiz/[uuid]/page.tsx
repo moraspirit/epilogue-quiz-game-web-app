@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
+import AnswerBlanks, { isAnswerComplete } from '@/components/AnswerBlanks';
 
 interface Question {
   id: number;
@@ -15,7 +16,9 @@ interface QuizLevel {
   uuid: string;
   title: string;
   levelOrder: number;
+  totalQuestions: number;
   question: Question;
+  answerWordLengths: number[];
 }
 
 export default function QuizPage() {
@@ -24,6 +27,7 @@ export default function QuizPage() {
   const uuid = params.uuid as string;
 
   const [level, setLevel] = useState<QuizLevel | null>(null);
+  const [blankKey, setBlankKey] = useState(0);
   const [answer, setAnswer] = useState('');
   const [feedback, setFeedback] = useState<{
     message: string;
@@ -36,62 +40,98 @@ export default function QuizPage() {
   const [totalQuestions, setTotalQuestions] = useState(0);
   const [error, setError] = useState('');
 
-  // Fetch this level's question on mount
-  useEffect(() => {
-    const fetchLevel = async () => {
-      try {
-        setLoading(true);
-        const token = localStorage.getItem('token');
+  const goToNextStep = useCallback(
+    async (token: string) => {
+      const nextRes = await fetch('/api/quiz/next', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const nextData = await nextRes.json();
 
-        if (!token) {
-          router.push('/login');
-          return;
-        }
-
-        const response = await fetch(`/api/quiz/${uuid}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (response.status === 401) {
-          router.push('/login');
-          return;
-        }
-
-        const data = await response.json();
-
-        // Level already completed - this question can't be re-attempted.
-        // Send the user onward instead of showing it again.
-        if (response.status === 409 && data.alreadyCompleted) {
-          router.push('/levels');
-          return;
-        }
-
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to fetch quiz');
-        }
-
-        setLevel(data.level);
-        setError('');
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-      } finally {
-        setLoading(false);
+      if (nextData.done) {
+        setScore(nextData.score);
+        setTotalQuestions(nextData.totalQuestions);
+        setQuizComplete(true);
+        return;
       }
-    };
 
+      if (nextData.nextLevelUuid) {
+        router.push(`/quiz/${nextData.nextLevelUuid}`);
+        return;
+      }
+
+      router.push('/levels');
+    },
+    [router]
+  );
+
+  const fetchLevel = useCallback(async () => {
+    try {
+      setLoading(true);
+      setFeedback({ message: '', type: null });
+      setAnswer('');
+      setBlankKey((key) => key + 1);
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+
+      const response = await fetch(`/api/quiz/${uuid}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.status === 401) {
+        router.push('/login');
+        return;
+      }
+
+      const data = await response.json();
+
+      if (response.status === 409 && data.alreadyCompleted) {
+        await goToNextStep(token);
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch quiz');
+      }
+
+      setLevel(data.level);
+      setError('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  }, [uuid, router, goToNextStep]);
+
+  useEffect(() => {
     fetchLevel();
-  }, [uuid, router]);
+  }, [fetchLevel]);
 
   const handleSubmitAnswer = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!answer.trim() || !level) return;
+    if (!level) return;
+
+    const wordLengths = level.answerWordLengths ?? [];
+    const answerReady =
+      wordLengths.length > 0
+        ? isAnswerComplete(answer, wordLengths)
+        : answer.trim().length > 0;
+
+    if (!answerReady) return;
 
     try {
       setSubmitting(true);
       const token = localStorage.getItem('token');
+      if (!token) {
+        router.push('/login');
+        return;
+      }
 
       const response = await fetch(`/api/quiz/${uuid}/answer`, {
         method: 'POST',
@@ -101,6 +141,7 @@ export default function QuizPage() {
         },
         body: JSON.stringify({
           answer: answer.trim(),
+          questionId: level.question.id,
         }),
       });
 
@@ -110,45 +151,34 @@ export default function QuizPage() {
         throw new Error(data.error || 'Failed to submit answer');
       }
 
-      // Per the rules: wrong answer shows ONLY "wrong answer" - nothing else
       if (data.correct) {
-        setFeedback({ message: '✅ Correct Answer!', type: 'success' });
+        setFeedback({ message: 'Correct answer!', type: 'success' });
       } else {
         setFeedback({ message: 'Wrong answer.', type: 'error' });
+        setAnswer('');
+        setBlankKey((key) => key + 1);
+        return;
       }
 
       if (data.quizComplete) {
-        // This was the last level - show final score screen
         setScore(data.score);
         setTotalQuestions(data.totalQuestions);
         setTimeout(() => {
           setQuizComplete(true);
         }, 1200);
-      } else {
-        // Move on to the next level, regardless of correct/wrong -
-        // one attempt only, then forward. Ask the server which level
-        // is next, since the frontend doesn't track level order itself.
-        setTimeout(async () => {
-          try {
-            const nextRes = await fetch('/api/quiz/next', {
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            const nextData = await nextRes.json();
-
-            if (nextData.done) {
-              setScore(nextData.score);
-              setTotalQuestions(nextData.totalQuestions);
-              setQuizComplete(true);
-            } else if (nextData.nextLevelUuid) {
-              router.push(`/quiz/${nextData.nextLevelUuid}`);
-            } else {
-              router.push('/levels');
-            }
-          } catch {
-            router.push('/levels');
-          }
-        }, 1200);
+        return;
       }
+
+      setTimeout(async () => {
+        if (data.hasMoreQuestionsInLevel) {
+          await fetchLevel();
+          return;
+        }
+
+        if (token) {
+          await goToNextStep(token);
+        }
+      }, 1200);
     } catch (err) {
       setFeedback({
         message: err instanceof Error ? err.message : 'An error occurred',
@@ -158,6 +188,14 @@ export default function QuizPage() {
       setSubmitting(false);
     }
   };
+
+  const wordLengths = level?.answerWordLengths ?? [];
+  const answerReady =
+    wordLengths.length > 0
+      ? isAnswerComplete(answer, wordLengths)
+      : answer.trim().length > 0;
+  const inputsDisabled = submitting;
+  const submitDisabled = inputsDisabled || !answerReady;
 
   if (loading) {
     return (
@@ -250,23 +288,22 @@ export default function QuizPage() {
 
       <section className="flex min-h-[calc(100vh-5rem)] flex-col items-center justify-center bg-[linear-gradient(115deg,#0d1729_0%,#10172a_58%,#221f4d_100%)] px-3 py-6 sm:px-5 sm:py-12">
         <div className="w-full max-w-2xl rounded-2xl sm:rounded-3xl border border-white/10 bg-[#172136]/92 p-5 sm:p-9 shadow-2xl shadow-slate-950/35">
-
-          {/* Level details & header */}
           <div className="border-b border-white/10 pb-4 mb-6">
             <span className="inline-block px-3 py-1 bg-[var(--primary)]/20 rounded-full text-xs sm:text-sm font-semibold text-[var(--primary)] mb-2">
               Level {level.levelOrder}
             </span>
             <h1 className="text-xl sm:text-2xl font-black text-white">{level.title}</h1>
+            <p className="mt-2 text-sm text-slate-400">
+              Question {level.question.questionOrder} of {level.totalQuestions}
+            </p>
           </div>
 
-          {/* Question Text */}
           <div className="bg-[#141d31] border border-white/5 rounded-xl sm:rounded-2xl p-5 sm:p-7 mb-6">
             <h2 className="text-base sm:text-xl font-bold leading-relaxed text-white">
-              {level.question?.questionText}
+              {level.question.questionText}
             </h2>
           </div>
 
-          {/* Feedback messages - wrong answer shows ONLY this message, nothing else */}
           {feedback.message && (
             <div
               className={`rounded-xl px-4 py-3 text-sm font-bold mb-6 border transition-all ${
@@ -279,33 +316,40 @@ export default function QuizPage() {
             </div>
           )}
 
-          {/* Answer Submit Form */}
           <form onSubmit={handleSubmitAnswer} className="space-y-4">
             <div className="block">
               <span className="text-xs sm:text-sm font-bold text-slate-400">
                 Your Answer
               </span>
-              <input
-                type="text"
-                placeholder="Type your answer here..."
-                value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
-                disabled={submitting || !!feedback.message}
-                autoFocus
-                className="mt-2 flex h-12 sm:h-14 w-full rounded-lg sm:rounded-2xl border border-slate-600/55 bg-[#172238] px-4 text-sm sm:text-lg font-medium text-white placeholder-slate-400 focus:border-blue-400 focus:outline-none transition"
-              />
+              {wordLengths.length > 0 ? (
+                <AnswerBlanks
+                  key={blankKey}
+                  wordLengths={wordLengths}
+                  onChange={setAnswer}
+                  disabled={inputsDisabled}
+                />
+              ) : (
+                <input
+                  type="text"
+                  placeholder="Type your answer here..."
+                  value={answer}
+                  onChange={(e) => setAnswer(e.target.value)}
+                  disabled={inputsDisabled}
+                  autoFocus
+                  className="mt-2 flex h-12 sm:h-14 w-full rounded-lg sm:rounded-2xl border border-slate-600/55 bg-[#172238] px-4 text-sm sm:text-lg font-medium text-white placeholder-slate-400 focus:border-blue-400 focus:outline-none transition"
+                />
+              )}
             </div>
 
             <button
               type="submit"
-              disabled={submitting || !answer.trim() || !!feedback.message}
+              disabled={submitDisabled}
               className="h-12 sm:h-14 w-full rounded-lg sm:rounded-2xl bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] text-base sm:text-lg font-black text-white shadow-xl shadow-blue-950/30 transition hover:scale-[1.01] focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitting ? 'Submitting...' : 'Submit Answer'}
             </button>
           </form>
 
-          {/* Exit/Levels button */}
           <div className="mt-8 flex justify-center border-t border-white/5 pt-4">
             <button
               onClick={() => router.push('/levels')}
@@ -315,7 +359,6 @@ export default function QuizPage() {
               ← Leave Quiz & Back to Levels
             </button>
           </div>
-
         </div>
       </section>
     </main>

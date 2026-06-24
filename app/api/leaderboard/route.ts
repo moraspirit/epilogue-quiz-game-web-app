@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { extractTokenFromHeader, verifyToken } from "@/lib/jwt";
+import {
+  CACHE_TTL,
+  cacheGet,
+  cacheSet,
+} from "@/lib/cache";
 
 const TOP_LIMIT = 20;
 
@@ -14,45 +19,55 @@ type LeaderboardEntry = {
   rank: number;
 };
 
+async function buildLeaderboard(): Promise<LeaderboardEntry[]> {
+  const users = await prisma.user.findMany({
+    where: { role: "USER" },
+    include: {
+      progress: {
+        orderBy: {
+          updatedAt: "desc",
+        },
+        take: 1,
+      },
+    },
+  });
+
+  return users
+    .map((user) => {
+      const userProgress = user.progress[0];
+      return {
+        id: user.id,
+        name: user.name,
+        indexNumber: user.indexNumber ?? "",
+        level: userProgress?.currentLevel || 1,
+        score: userProgress?.totalScore || 0,
+        status:
+          (userProgress?.status as "Playing" | "Completed" | "Idle") ||
+          "Idle",
+        rank: 0,
+      };
+    })
+    .sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score;
+      }
+      return b.level - a.level;
+    })
+    .map((entry, index) => ({
+      ...entry,
+      rank: index + 1,
+    }));
+}
+
 export async function GET(req: Request) {
   try {
-    const users = await prisma.user.findMany({
-      where: { role: "USER" },
-      include: {
-        progress: {
-          orderBy: {
-            updatedAt: "desc",
-          },
-          take: 1,
-        },
-      },
-    });
+    const cacheKey = "leaderboard:full";
+    let rankedLeaderboard = await cacheGet<LeaderboardEntry[]>(cacheKey);
 
-    const rankedLeaderboard: LeaderboardEntry[] = users
-      .map((user) => {
-        const userProgress = user.progress[0];
-        return {
-          id: user.id,
-          name: user.name,
-          indexNumber: user.indexNumber ?? "",
-          level: userProgress?.currentLevel || 1,
-          score: userProgress?.totalScore || 0,
-          status:
-            (userProgress?.status as "Playing" | "Completed" | "Idle") ||
-            "Idle",
-          rank: 0,
-        };
-      })
-      .sort((a, b) => {
-        if (b.score !== a.score) {
-          return b.score - a.score;
-        }
-        return b.level - a.level;
-      })
-      .map((entry, index) => ({
-        ...entry,
-        rank: index + 1,
-      }));
+    if (!rankedLeaderboard) {
+      rankedLeaderboard = await buildLeaderboard();
+      await cacheSet(cacheKey, rankedLeaderboard, CACHE_TTL.LEADERBOARD);
+    }
 
     const topLeaderboard = rankedLeaderboard.slice(0, TOP_LIMIT);
 
