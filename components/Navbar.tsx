@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import QuizNavLink from "@/components/QuizNavLink";
+import { useLoggedIn } from "@/lib/authClient";
 
 function BrandIcon({
   className = "size-11",
@@ -71,6 +72,7 @@ function HamburgerIcon({
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
+  const loggedIn = useLoggedIn();
 
   const closeMenu = () => setOpen(false);
 
@@ -131,12 +133,14 @@ export default function Navbar() {
               Leaderboard
             </Link>
 
-            <Link
-              href="/register"
-              className="rounded-2xl bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] px-6 py-3 text-white shadow-lg shadow-violet-500/20 transition duration-300 hover:scale-105"
-            >
-              Join
-            </Link>
+            {!loggedIn && (
+              <Link
+                href="/register"
+                className="rounded-2xl bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] px-6 py-3 text-white shadow-lg shadow-violet-500/20 transition duration-300 hover:scale-105"
+              >
+                Join
+              </Link>
+            )}
 
           </div>
 
@@ -216,15 +220,17 @@ export default function Navbar() {
             Leaderboard
           </Link>
 
-          <div className="mt-6">
-            <Link
-              href="/register"
-              onClick={closeMenu}
-              className="block rounded-2xl bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] px-6 py-4 text-center font-semibold text-white shadow-lg shadow-violet-500/20 transition hover:scale-[1.02]"
-            >
-              Join Competition
-            </Link>
-          </div>
+          {!loggedIn && (
+            <div className="mt-6">
+              <Link
+                href="/register"
+                onClick={closeMenu}
+                className="block rounded-2xl bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] px-6 py-4 text-center font-semibold text-white shadow-lg shadow-violet-500/20 transition hover:scale-[1.02]"
+              >
+                Join Competition
+              </Link>
+            </div>
+          )}
         </nav>
 
         {/* Footer */}

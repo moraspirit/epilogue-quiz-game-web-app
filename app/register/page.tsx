@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Navbar from "@/components/Navbar";
-import { navigateToCurrentQuiz, setToken } from "@/lib/authClient";
+import { navigateToCurrentQuiz, setToken, useRedirectIfLoggedIn } from "@/lib/authClient";
 import { validateRegisterForm, ValidationError } from "@/lib/validation";
 
 function QuestIcon() {
@@ -75,6 +75,7 @@ function FieldIcon({ type }: { type: "id" | "user" | "lock" }) {
 
 export default function RegisterPage() {
   const router = useRouter();
+  useRedirectIfLoggedIn();
   const [indexNumber, setIndexNumber] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");

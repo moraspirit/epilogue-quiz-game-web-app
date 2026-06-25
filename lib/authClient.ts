@@ -1,3 +1,8 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+
 export const TOKEN_KEY = "token";
 
 export function getToken(): string | null {
@@ -14,6 +19,32 @@ export function setToken(token: string): void {
 
 export function clearToken(): void {
   localStorage.removeItem(TOKEN_KEY);
+}
+
+export function isLoggedIn(): boolean {
+  return Boolean(getToken());
+}
+
+export function useLoggedIn(): boolean {
+  const [loggedIn, setLoggedIn] = useState(false);
+
+  useEffect(() => {
+    setLoggedIn(isLoggedIn());
+  }, []);
+
+  return loggedIn;
+}
+
+export function useRedirectIfLoggedIn(): void {
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoggedIn()) {
+      return;
+    }
+
+    void navigateToCurrentQuiz(router.push);
+  }, [router]);
 }
 
 type QuizNavigationResult = "quiz" | "complete" | "login";
