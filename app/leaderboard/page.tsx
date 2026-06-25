@@ -95,14 +95,9 @@ export default function LeaderboardPage() {
   async function fetchLeaderboard() {
     try {
       setLoading(true);
-      const token = localStorage.getItem("token");
-      const headers: HeadersInit = {};
-
-      if (token) {
-        headers.Authorization = `Bearer ${token}`;
-      }
-
-      const response = await fetch("/api/leaderboard", { headers });
+      const response = await fetch("/api/leaderboard", {
+        credentials: "include",
+      });
 
       if (!response.ok) {
         throw new Error("Failed to fetch leaderboard");

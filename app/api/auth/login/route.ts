@@ -3,14 +3,12 @@ import { createToken } from "@/lib/jwt";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { validateLoginServer, normalizeIndexNumber } from "@/lib/validation";
+import { applyUserSessionCookie } from "@/lib/authSession";
 
-export async function POST(
-  req: Request
-) {
+export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    // Validate input using server-side validation
     const validationErrors = validateLoginServer(body);
     if (validationErrors.length > 0) {
       return NextResponse.json(
@@ -26,15 +24,13 @@ export async function POST(
     const { indexNumber, password } = body;
     const normalizedIndexNumber = normalizeIndexNumber(indexNumber);
 
-    // Find user by index number
-    const user =
-  await prisma.user.findUnique({
-    where: {
-      indexNumber: normalizedIndexNumber,
-    },
-  });
+    const user = await prisma.user.findUnique({
+      where: {
+        indexNumber: normalizedIndexNumber,
+      },
+    });
 
-    if (!user || user.role !== 'USER') {
+    if (!user || user.role !== "USER") {
       return NextResponse.json(
         {
           success: false,
@@ -44,11 +40,7 @@ export async function POST(
       );
     }
 
-    // Compare password
-    const isPasswordValid = await bcrypt.compare(
-      password,
-      user.passwordHash
-    );
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 
     if (!isPasswordValid) {
       return NextResponse.json(
@@ -60,18 +52,17 @@ export async function POST(
       );
     }
 
-    // Create JWT token
     const token = await createToken({
       id: user.id,
       indexNumber: user.indexNumber ?? "",
       name: user.name,
+      role: "USER",
     });
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       {
         success: true,
         message: "Login successful",
-        token,
         user: {
           id: user.id,
           indexNumber: user.indexNumber ?? "",
@@ -80,11 +71,12 @@ export async function POST(
       },
       { status: 200 }
     );
+
+    return applyUserSessionCookie(response, token);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Login error:", errorMessage, error);
-    
-    // Check if it's a database connection error
+
     if (errorMessage.includes("connect") || errorMessage.includes("ECONNREFUSED")) {
       return NextResponse.json(
         {

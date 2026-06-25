@@ -39,10 +39,15 @@ export default function FrontPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      router.push("/login");
-    }
+    fetch("/api/auth/session", { credentials: "include" })
+      .then((response) => {
+        if (!response.ok) {
+          router.push("/login");
+        }
+      })
+      .catch(() => {
+        router.push("/login");
+      });
   }, [router]);
 
   return (

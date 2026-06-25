@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyToken, extractTokenFromHeader } from "@/lib/jwt";
+import { getAuthenticatedUser } from "@/lib/authServer";
 import {
   CACHE_TTL,
   cacheGet,
@@ -10,29 +10,16 @@ import { loadUserQuizSnapshot } from "@/lib/quizProgress";
 
 export async function GET(req: NextRequest) {
   try {
-    const token = extractTokenFromHeader(req.headers.get("authorization"));
+    const user = await getAuthenticatedUser(req);
 
-    if (!token) {
+    if (!user) {
       return NextResponse.json(
-        { error: "Unauthorized: No token provided" },
+        { error: "Unauthorized: Invalid or expired session" },
         { status: 401 }
       );
     }
 
-    let payload;
-    try {
-      payload = await verifyToken(token);
-    } catch {
-      return NextResponse.json(
-        { error: "Unauthorized: Invalid token" },
-        { status: 401 }
-      );
-    }
-
-    const userId = Number(payload.id);
-    if (Number.isNaN(userId)) {
-      return NextResponse.json({ error: "Invalid user" }, { status: 401 });
-    }
+    const userId = user.id;
 
     const cacheKey = `user:progress:${userId}`;
     let questionStatus = await cacheGet<

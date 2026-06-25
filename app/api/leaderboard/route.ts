@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { extractTokenFromHeader, verifyToken } from "@/lib/jwt";
+import { getAuthenticatedUser } from "@/lib/authServer";
 import {
   CACHE_TTL,
   cacheGet,
@@ -78,38 +78,30 @@ export async function GET(req: Request) {
 
     let currentUser: LeaderboardEntryWithIndex | null = null;
     let viewer: { userId: number; indexNumber: string } | null = null;
-    const authHeader = req.headers.get("authorization");
-    const token = extractTokenFromHeader(authHeader);
+    const viewerUser = await getAuthenticatedUser(req);
 
-    if (token) {
-      try {
-        const payload = await verifyToken(token);
-        const userId = Number(payload.id);
+    if (viewerUser) {
+      const userRecord = await prisma.user.findUnique({
+        where: { id: viewerUser.id },
+        select: { indexNumber: true },
+      });
 
-        if (!Number.isNaN(userId)) {
-          const userRecord = await prisma.user.findUnique({
-            where: { id: userId },
-            select: { indexNumber: true },
-          });
+      if (userRecord?.indexNumber) {
+        viewer = {
+          userId: viewerUser.id,
+          indexNumber: userRecord.indexNumber,
+        };
+      }
 
-          if (userRecord?.indexNumber) {
-            viewer = {
-              userId,
-              indexNumber: userRecord.indexNumber,
-            };
-          }
+      const userEntry = rankedLeaderboard.find(
+        (entry) => entry.id === viewerUser.id
+      );
 
-          const userEntry = rankedLeaderboard.find((entry) => entry.id === userId);
-
-          if (userEntry && userEntry.rank > TOP_LIMIT) {
-            currentUser = {
-              ...userEntry,
-              indexNumber: userRecord?.indexNumber ?? "",
-            };
-          }
-        }
-      } catch {
-        // Ignore invalid tokens and return public leaderboard data only.
+      if (userEntry && userEntry.rank > TOP_LIMIT) {
+        currentUser = {
+          ...userEntry,
+          indexNumber: userRecord?.indexNumber ?? "",
+        };
       }
     }
 

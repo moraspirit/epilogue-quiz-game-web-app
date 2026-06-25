@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import AnswerBlanks from '@/components/AnswerBlanks';
+import { authFetch } from '@/lib/authClient';
 import { isAnswerComplete, type AnswerBlankSegment } from '@/lib/answerPattern';
 
 interface QuizQuestion {
@@ -36,17 +37,7 @@ export default function QuizPage() {
       setAnswer('');
       setBlankKey((key) => key + 1);
 
-      const token = localStorage.getItem('token');
-      if (!token) {
-        router.push('/login');
-        return;
-      }
-
-      const response = await fetch('/api/quiz', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await authFetch('/api/quiz');
 
       if (response.status === 401) {
         router.push('/login');
@@ -96,16 +87,9 @@ export default function QuizPage() {
 
     try {
       setSubmitting(true);
-      const token = localStorage.getItem('token');
-      if (!token) {
-        router.push('/login');
-        return;
-      }
-
-      const response = await fetch('/api/quiz/answer', {
+      const response = await authFetch('/api/quiz/answer', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({

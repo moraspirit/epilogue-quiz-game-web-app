@@ -2,34 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { clearLegacyBrowserToken } from "@/lib/authSession";
 
-export const TOKEN_KEY = "token";
-
-export function getToken(): string | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  return localStorage.getItem(TOKEN_KEY);
-}
-
-export function setToken(token: string): void {
-  localStorage.setItem(TOKEN_KEY, token);
-}
-
-export function clearToken(): void {
-  localStorage.removeItem(TOKEN_KEY);
-}
-
-export function isLoggedIn(): boolean {
-  return Boolean(getToken());
-}
+type QuizNavigationResult = "quiz" | "complete" | "login";
 
 export function useLoggedIn(): boolean {
   const [loggedIn, setLoggedIn] = useState(false);
 
   useEffect(() => {
-    setLoggedIn(isLoggedIn());
+    clearLegacyBrowserToken();
+
+    fetch("/api/auth/session", { credentials: "include" })
+      .then((response) => setLoggedIn(response.ok))
+      .catch(() => setLoggedIn(false));
   }, []);
 
   return loggedIn;
@@ -39,35 +24,54 @@ export function useRedirectIfLoggedIn(): void {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoggedIn()) {
-      return;
-    }
-
-    void navigateToCurrentQuiz(router.push);
+    fetch("/api/auth/session", { credentials: "include" })
+      .then((response) => {
+        if (response.ok) {
+          void navigateToCurrentQuiz(router.push);
+        }
+      })
+      .catch(() => {
+        // Stay on login/register page.
+      });
   }, [router]);
 }
 
-type QuizNavigationResult = "quiz" | "complete" | "login";
+export async function logout(): Promise<void> {
+  clearLegacyBrowserToken();
+
+  try {
+    await fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "include",
+    });
+  } catch {
+    // Best effort.
+  }
+}
+
+export async function authFetch(
+  input: RequestInfo | URL,
+  init: RequestInit = {}
+): Promise<Response> {
+  const response = await fetch(input, {
+    ...init,
+    credentials: "include",
+  });
+
+  if (response.status === 401) {
+    await logout();
+  }
+
+  return response;
+}
 
 export async function navigateToCurrentQuiz(
   navigate: (path: string) => void
 ): Promise<QuizNavigationResult> {
-  const token = getToken();
-
-  if (!token) {
-    navigate("/login");
-    return "login";
-  }
-
   try {
-    const response = await fetch("/api/quiz/next", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const response = await authFetch("/api/quiz/next");
 
     if (response.status === 401) {
-      clearToken();
       navigate("/login");
       return "login";
     }
@@ -89,5 +93,22 @@ export async function navigateToCurrentQuiz(
   } catch {
     navigate("/login");
     return "login";
+  }
+}
+
+export async function requireSession(
+  navigate: (path: string) => void
+): Promise<boolean> {
+  try {
+    const response = await authFetch("/api/auth/session");
+    if (!response.ok) {
+      navigate("/login");
+      return false;
+    }
+
+    return true;
+  } catch {
+    navigate("/login");
+    return false;
   }
 }

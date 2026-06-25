@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Navbar from "@/components/Navbar";
-import { navigateToCurrentQuiz, setToken, useRedirectIfLoggedIn } from "@/lib/authClient";
+import { navigateToCurrentQuiz, useRedirectIfLoggedIn } from "@/lib/authClient";
 import { validateLoginForm, ValidationError } from "@/lib/validation";
 
 function QuestIcon() {
@@ -91,6 +91,7 @@ export default function LoginPage() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({
           indexNumber,
           password,
@@ -104,7 +105,6 @@ export default function LoginPage() {
           type: "success",
           text: "Login successful! Redirecting...",
         });
-        setToken(data.token);
         setTimeout(async () => {
           await navigateToCurrentQuiz(router.push);
         }, 500);

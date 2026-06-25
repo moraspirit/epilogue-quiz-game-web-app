@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { verifyToken, extractTokenFromHeader } from "@/lib/jwt";
 import {
   invalidateLeaderboardCache,
   invalidateUserProgressCache,
 } from "@/lib/cache";
+import { getAuthenticatedUser } from "@/lib/authServer";
 import {
   answersMatch,
   getCurrentQuestionFromSnapshot,
@@ -14,28 +14,13 @@ import {
 
 export async function POST(req: NextRequest) {
   try {
-    const token = extractTokenFromHeader(req.headers.get("authorization"));
+    const user = await getAuthenticatedUser(req);
 
-    if (!token) {
+    if (!user) {
       return NextResponse.json(
-        { error: "Unauthorized: No token provided" },
+        { error: "Unauthorized: Invalid or expired session" },
         { status: 401 }
       );
-    }
-
-    let payload;
-    try {
-      payload = await verifyToken(token);
-    } catch {
-      return NextResponse.json(
-        { error: "Unauthorized: Invalid token" },
-        { status: 401 }
-      );
-    }
-
-    const userId = Number(payload.id);
-    if (Number.isNaN(userId)) {
-      return NextResponse.json({ error: "Invalid user" }, { status: 401 });
     }
 
     const body = await req.json();
@@ -55,7 +40,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const snapshot = await loadUserQuizSnapshot(userId);
+    const snapshot = await loadUserQuizSnapshot(user.id);
     const question = snapshot.structure.questionById.get(questionId);
 
     if (!question) {
@@ -100,7 +85,7 @@ export async function POST(req: NextRequest) {
     await prisma.userProgress.upsert({
       where: {
         userId_questionId: {
-          userId,
+          userId: user.id,
           questionId: question.id,
         },
       },
@@ -109,7 +94,7 @@ export async function POST(req: NextRequest) {
         passedAt: new Date(),
       },
       create: {
-        userId,
+        userId: user.id,
         questionId: question.id,
         passedAt: new Date(),
         isCorrect: true,
@@ -120,7 +105,7 @@ export async function POST(req: NextRequest) {
     const totalQuestions = snapshot.structure.totalQuestions;
     const quizComplete = score >= totalQuestions;
 
-    await invalidateUserProgressCache(userId);
+    await invalidateUserProgressCache(user.id);
     await invalidateLeaderboardCache();
 
     return NextResponse.json({
