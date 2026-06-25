@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import QuizNavLink from "@/components/QuizNavLink";
-import { useLoggedIn } from "@/lib/authClient";
+import { logout, useLoggedIn } from "@/lib/authClient";
 
 function BrandIcon({
   className = "size-11",
@@ -40,6 +41,25 @@ function LeaderboardIcon() {
   );
 }
 
+function LogoutIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="size-5"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+    >
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <path d="M16 17l5-5-5-5" />
+      <path d="M21 12H9" />
+    </svg>
+  );
+}
+
 function HamburgerIcon({
   open,
 }: {
@@ -71,10 +91,30 @@ function HamburgerIcon({
 }
 
 export default function Navbar() {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
-  const loggedIn = useLoggedIn();
+  const sessionLoggedIn = useLoggedIn();
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const closeMenu = () => setOpen(false);
+
+  useEffect(() => {
+    setLoggedIn(sessionLoggedIn);
+  }, [sessionLoggedIn]);
+
+  async function handleLogout() {
+    closeMenu();
+    setLoggingOut(true);
+
+    try {
+      await logout();
+      setLoggedIn(false);
+      router.push("/login");
+    } finally {
+      setLoggingOut(false);
+    }
+  }
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
@@ -133,13 +173,23 @@ export default function Navbar() {
               Leaderboard
             </Link>
 
-            {!loggedIn && (
+            {!loggedIn ? (
               <Link
                 href="/register"
                 className="rounded-2xl bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] px-6 py-3 text-white shadow-lg shadow-violet-500/20 transition duration-300 hover:scale-105"
               >
                 Join
               </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="inline-flex items-center gap-2 rounded-2xl border border-white/15 px-5 py-3 text-slate-200 transition hover:border-white/30 hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <LogoutIcon />
+                {loggingOut ? "Logging out..." : "Logout"}
+              </button>
             )}
 
           </div>
@@ -220,7 +270,7 @@ export default function Navbar() {
             Leaderboard
           </Link>
 
-          {!loggedIn && (
+          {!loggedIn ? (
             <div className="mt-6">
               <Link
                 href="/register"
@@ -230,6 +280,16 @@ export default function Navbar() {
                 Join Competition
               </Link>
             </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="mt-6 flex w-full items-center justify-center gap-3 rounded-2xl border border-white/15 px-6 py-4 text-base font-semibold text-slate-200 transition hover:border-white/30 hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <LogoutIcon />
+              {loggingOut ? "Logging out..." : "Logout"}
+            </button>
           )}
         </nav>
 
