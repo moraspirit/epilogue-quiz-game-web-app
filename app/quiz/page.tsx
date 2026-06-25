@@ -4,12 +4,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import AnswerBlanks, { isAnswerComplete } from '@/components/AnswerBlanks';
+import type { AnswerBlankSegment } from '@/lib/quizProgress';
 
 interface QuizQuestion {
   id: number;
   questionText: string;
   questionOrder: number;
-  answerWordLengths: number[];
+  answerBlankPattern: AnswerBlankSegment[];
 }
 
 export default function QuizPage() {
@@ -85,10 +86,10 @@ export default function QuizPage() {
 
     if (!question) return;
 
-    const wordLengths = question.answerWordLengths ?? [];
+    const blankPattern = question.answerBlankPattern ?? [];
     const answerReady =
-      wordLengths.length > 0
-        ? isAnswerComplete(answer, wordLengths)
+      blankPattern.length > 0
+        ? isAnswerComplete(answer, blankPattern)
         : answer.trim().length > 0;
 
     if (!answerReady) return;
@@ -158,10 +159,10 @@ export default function QuizPage() {
     }
   };
 
-  const wordLengths = question?.answerWordLengths ?? [];
+  const blankPattern = question?.answerBlankPattern ?? [];
   const answerReady =
-    wordLengths.length > 0
-      ? isAnswerComplete(answer, wordLengths)
+    blankPattern.length > 0
+      ? isAnswerComplete(answer, blankPattern)
       : answer.trim().length > 0;
   const inputsDisabled = submitting;
   const submitDisabled = inputsDisabled || !answerReady;
@@ -262,10 +263,10 @@ export default function QuizPage() {
               <span className="text-xs sm:text-sm font-bold text-slate-400">
                 Your Answer
               </span>
-              {wordLengths.length > 0 ? (
+              {blankPattern.length > 0 ? (
                 <AnswerBlanks
                   key={blankKey}
-                  wordLengths={wordLengths}
+                  pattern={blankPattern}
                   onChange={setAnswer}
                   disabled={inputsDisabled}
                 />

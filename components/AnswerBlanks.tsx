@@ -1,118 +1,175 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { AnswerBlankSegment } from "@/lib/quizProgress";
 
 interface AnswerBlanksProps {
-  wordLengths: number[];
+  pattern: AnswerBlankSegment[];
   onChange: (value: string) => void;
   disabled?: boolean;
 }
 
-function createEmptyCells(wordLengths: number[]): string[][] {
-  return wordLengths.map((length) => Array.from({ length }, () => ""));
+function getLetterSegmentLengths(pattern: AnswerBlankSegment[]): number[] {
+  return pattern
+    .filter(
+      (segment): segment is Extract<AnswerBlankSegment, { kind: "letters" }> =>
+        segment.kind === "letters"
+    )
+    .map((segment) => segment.length);
 }
 
-function buildAnswer(cells: string[][]): string {
-  if (cells.every((word) => word.every((cell) => cell === ""))) {
+function createEmptyCells(letterLengths: number[]): string[][] {
+  return letterLengths.map((length) => Array.from({ length }, () => ""));
+}
+
+function buildAnswer(
+  cells: string[][],
+  pattern: AnswerBlankSegment[]
+): string {
+  if (cells.every((segment) => segment.every((cell) => cell === ""))) {
     return "";
   }
 
-  return cells.map((word) => word.join("")).join(" ");
+  let cellIndex = 0;
+  let result = "";
+
+  for (const segment of pattern) {
+    if (segment.kind === "letters") {
+      result += cells[cellIndex].join("");
+      cellIndex += 1;
+    } else if (segment.kind === "dash") {
+      result += "-";
+    } else if (segment.kind === "space") {
+      result += " ";
+    }
+  }
+
+  return result;
 }
 
 export default function AnswerBlanks({
-  wordLengths,
+  pattern,
   onChange,
   disabled = false,
 }: AnswerBlanksProps) {
+  const letterLengths = getLetterSegmentLengths(pattern);
   const [cells, setCells] = useState<string[][]>(() =>
-    createEmptyCells(wordLengths)
+    createEmptyCells(letterLengths)
   );
   const inputRefs = useRef<Array<Array<HTMLInputElement | null>>>([]);
 
   useEffect(() => {
-    const nextCells = createEmptyCells(wordLengths);
+    const nextCells = createEmptyCells(letterLengths);
     setCells(nextCells);
-    inputRefs.current = wordLengths.map((length) =>
+    inputRefs.current = letterLengths.map((length) =>
       Array.from({ length }, () => null)
     );
     onChange("");
-  }, [wordLengths, onChange]);
+  }, [pattern, onChange]);
 
-  function focusCell(wordIndex: number, letterIndex: number) {
-    inputRefs.current[wordIndex]?.[letterIndex]?.focus();
+  function focusCell(segmentIndex: number, letterIndex: number) {
+    inputRefs.current[segmentIndex]?.[letterIndex]?.focus();
   }
 
   function updateCells(nextCells: string[][]) {
     setCells(nextCells);
-    onChange(buildAnswer(nextCells));
+    onChange(buildAnswer(nextCells, pattern));
   }
 
   function handleChange(
-    wordIndex: number,
+    segmentIndex: number,
     letterIndex: number,
     nextValue: string
   ) {
-    const nextCells = cells.map((word) => [...word]);
+    const nextCells = cells.map((segment) => [...segment]);
     const sanitized = nextValue.length > 1 ? nextValue.slice(-1) : nextValue;
 
     if (sanitized && /\s/.test(sanitized)) {
       return;
     }
 
-    nextCells[wordIndex][letterIndex] = sanitized;
+    nextCells[segmentIndex][letterIndex] = sanitized;
     updateCells(nextCells);
 
-    if (sanitized && letterIndex < wordLengths[wordIndex] - 1) {
-      focusCell(wordIndex, letterIndex + 1);
+    if (sanitized && letterIndex < letterLengths[segmentIndex] - 1) {
+      focusCell(segmentIndex, letterIndex + 1);
     } else if (
       sanitized &&
-      letterIndex === wordLengths[wordIndex] - 1 &&
-      wordIndex < wordLengths.length - 1
+      letterIndex === letterLengths[segmentIndex] - 1 &&
+      segmentIndex < letterLengths.length - 1
     ) {
-      focusCell(wordIndex + 1, 0);
+      focusCell(segmentIndex + 1, 0);
     }
   }
 
   function handleKeyDown(
     event: React.KeyboardEvent<HTMLInputElement>,
-    wordIndex: number,
+    segmentIndex: number,
     letterIndex: number
   ) {
     if (event.key === "Backspace") {
-      if (cells[wordIndex][letterIndex]) {
+      if (cells[segmentIndex][letterIndex]) {
         return;
       }
 
       if (letterIndex > 0) {
         event.preventDefault();
-        const nextCells = cells.map((word) => [...word]);
-        nextCells[wordIndex][letterIndex - 1] = "";
+        const nextCells = cells.map((segment) => [...segment]);
+        nextCells[segmentIndex][letterIndex - 1] = "";
         updateCells(nextCells);
-        focusCell(wordIndex, letterIndex - 1);
-      } else if (wordIndex > 0) {
+        focusCell(segmentIndex, letterIndex - 1);
+      } else if (segmentIndex > 0) {
         event.preventDefault();
-        focusCell(wordIndex - 1, wordLengths[wordIndex - 1] - 1);
+        focusCell(segmentIndex - 1, letterLengths[segmentIndex - 1] - 1);
       }
     }
   }
 
+  let letterSegmentIndex = 0;
+
   return (
-    <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-3">
-      {wordLengths.map((length, wordIndex) => (
-        <div key={`word-${wordIndex}`} className="flex items-center gap-2">
-          {wordIndex > 0 && (
-            <span className="px-1 text-sm font-bold text-slate-500">space</span>
-          )}
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            {Array.from({ length }).map((_, letterIndex) => (
+    <div className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-3">
+      {pattern.map((segment, index) => {
+        if (segment.kind === "dash") {
+          return (
+            <span
+              key={`dash-${index}`}
+              className="px-1 text-xl font-bold text-white"
+              aria-hidden="true"
+            >
+              -
+            </span>
+          );
+        }
+
+        if (segment.kind === "space") {
+          return (
+            <span
+              key={`space-${index}`}
+              className="px-1 text-sm font-bold text-slate-500"
+              aria-hidden="true"
+            >
+              space
+            </span>
+          );
+        }
+
+        const currentSegmentIndex = letterSegmentIndex;
+        letterSegmentIndex += 1;
+
+        return (
+          <div
+            key={`letters-${index}`}
+            className="flex items-center gap-1.5 sm:gap-2"
+          >
+            {Array.from({ length: segment.length }).map((_, letterIndex) => (
               <input
-                key={`${wordIndex}-${letterIndex}`}
+                key={`${currentSegmentIndex}-${letterIndex}`}
                 ref={(element) => {
-                  if (!inputRefs.current[wordIndex]) {
-                    inputRefs.current[wordIndex] = [];
+                  if (!inputRefs.current[currentSegmentIndex]) {
+                    inputRefs.current[currentSegmentIndex] = [];
                   }
-                  inputRefs.current[wordIndex][letterIndex] = element;
+                  inputRefs.current[currentSegmentIndex][letterIndex] = element;
                 }}
                 type="text"
                 inputMode="text"
@@ -120,38 +177,58 @@ export default function AnswerBlanks({
                 autoCapitalize="characters"
                 spellCheck={false}
                 maxLength={1}
-                value={cells[wordIndex]?.[letterIndex] ?? ""}
+                value={cells[currentSegmentIndex]?.[letterIndex] ?? ""}
                 disabled={disabled}
-                aria-label={`Letter ${letterIndex + 1} of word ${wordIndex + 1}`}
+                aria-label={`Letter ${letterIndex + 1} of segment ${currentSegmentIndex + 1}`}
                 onChange={(event) =>
-                  handleChange(wordIndex, letterIndex, event.target.value)
+                  handleChange(
+                    currentSegmentIndex,
+                    letterIndex,
+                    event.target.value
+                  )
                 }
                 onKeyDown={(event) =>
-                  handleKeyDown(event, wordIndex, letterIndex)
+                  handleKeyDown(event, currentSegmentIndex, letterIndex)
                 }
                 className="size-10 rounded-lg border border-slate-600/55 bg-[#172238] text-center text-base font-bold uppercase text-white focus:border-blue-400 focus:outline-none sm:size-12 sm:text-lg disabled:cursor-not-allowed disabled:opacity-50"
               />
             ))}
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
 export function isAnswerComplete(
   answer: string,
-  wordLengths: number[]
+  pattern: AnswerBlankSegment[]
 ): boolean {
   if (!answer.trim()) {
     return false;
   }
 
-  const words = answer.split(" ");
+  let index = 0;
 
-  if (words.length !== wordLengths.length) {
-    return false;
+  for (const segment of pattern) {
+    if (segment.kind === "letters") {
+      const chunk = answer.slice(index, index + segment.length);
+      if (chunk.length !== segment.length || /[\s-]/.test(chunk)) {
+        return false;
+      }
+      index += segment.length;
+    } else if (segment.kind === "dash") {
+      if (answer[index] !== "-") {
+        return false;
+      }
+      index += 1;
+    } else if (segment.kind === "space") {
+      if (answer[index] !== " ") {
+        return false;
+      }
+      index += 1;
+    }
   }
 
-  return words.every((word, index) => word.length === wordLengths[index]);
+  return index === answer.length;
 }

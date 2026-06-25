@@ -9,12 +9,43 @@ export function normalizeAnswer(answer: string): string {
   return answer.trim().toLowerCase();
 }
 
+export type AnswerBlankSegment =
+  | { kind: "letters"; length: number }
+  | { kind: "dash" }
+  | { kind: "space" };
+
+export function getAnswerBlankPattern(answerKey: string): AnswerBlankSegment[] {
+  const segments: AnswerBlankSegment[] = [];
+  const words = answerKey.trim().split(/\s+/).filter(Boolean);
+
+  words.forEach((word, wordIndex) => {
+    if (wordIndex > 0) {
+      segments.push({ kind: "space" });
+    }
+
+    const parts = word.split("-");
+    parts.forEach((part, partIndex) => {
+      if (partIndex > 0) {
+        segments.push({ kind: "dash" });
+      }
+
+      if (part.length > 0) {
+        segments.push({ kind: "letters", length: part.length });
+      }
+    });
+  });
+
+  return segments;
+}
+
+/** @deprecated Use getAnswerBlankPattern instead */
 export function getAnswerWordLengths(answerKey: string): number[] {
-  return answerKey
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((word) => word.length);
+  return getAnswerBlankPattern(answerKey)
+    .filter(
+      (segment): segment is Extract<AnswerBlankSegment, { kind: "letters" }> =>
+        segment.kind === "letters"
+    )
+    .map((segment) => segment.length);
 }
 
 export type UserQuizSnapshot = {
