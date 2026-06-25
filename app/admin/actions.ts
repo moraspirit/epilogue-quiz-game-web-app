@@ -28,20 +28,38 @@ async function checkAdminAuth() {
   }
 }
 
+async function applyQuestionOrder(ids: number[]) {
+  if (ids.length === 0) {
+    return;
+  }
+
+  // Use temporary order values first so unique questionOrder never collides mid-update.
+  await prisma.$transaction(
+    ids.map((id, index) =>
+      prisma.quizQuestion.update({
+        where: { id },
+        data: { questionOrder: 100000 + index },
+      })
+    )
+  );
+
+  await prisma.$transaction(
+    ids.map((id, index) =>
+      prisma.quizQuestion.update({
+        where: { id },
+        data: { questionOrder: index + 1 },
+      })
+    )
+  );
+}
+
 async function renormalizeQuestionOrders() {
   const questions = await prisma.quizQuestion.findMany({
     orderBy: { questionOrder: 'asc' },
     select: { id: true },
   });
 
-  await prisma.$transaction(
-    questions.map((question, index) =>
-      prisma.quizQuestion.update({
-        where: { id: question.id },
-        data: { questionOrder: index + 1 },
-      })
-    )
-  );
+  await applyQuestionOrder(questions.map((question) => question.id));
 }
 
 async function invalidateQuizCaches() {
@@ -122,21 +140,13 @@ export async function moveQuestionOrder(formData: FormData) {
     return;
   }
 
-  const currentQuestion = questions[currentIndex];
-  const targetQuestion = questions[targetIndex];
+  const orderedIds = questions.map((question) => question.id);
+  [orderedIds[currentIndex], orderedIds[targetIndex]] = [
+    orderedIds[targetIndex],
+    orderedIds[currentIndex],
+  ];
 
-  await prisma.$transaction([
-    prisma.quizQuestion.update({
-      where: { id: currentQuestion.id },
-      data: { questionOrder: targetQuestion.questionOrder },
-    }),
-    prisma.quizQuestion.update({
-      where: { id: targetQuestion.id },
-      data: { questionOrder: currentQuestion.questionOrder },
-    }),
-  ]);
-
-  await renormalizeQuestionOrders();
+  await applyQuestionOrder(orderedIds);
   await invalidateQuizCaches();
   revalidatePath('/admin');
 }
