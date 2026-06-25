@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { addQuestion, deleteQuestion } from './actions';
 import ParticipantTable from './ParticipantTable';
+import QuizLevelOrderPanel from './QuizLevelOrderPanel';
 import { createPageMetadata } from '@/lib/siteMetadata';
 import { computeQuizStatus } from '@/lib/quizProgress';
 import type { Metadata } from 'next';
@@ -103,6 +104,14 @@ export default async function AdminDashboard() {
             </div>
           ))}
         </div>
+
+        <QuizLevelOrderPanel
+          levels={quizLevels.map((level) => ({
+            id: level.id,
+            title: level.title,
+            levelOrder: level.levelOrder,
+          }))}
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="bg-[#181D2F]/80 backdrop-blur-md border border-white/5 rounded-2xl p-6 shadow-lg h-fit">

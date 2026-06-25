@@ -75,3 +75,49 @@ export async function deleteQuestion(formData: FormData) {
 
   revalidatePath('/admin');
 }
+
+export async function moveQuizLevelOrder(formData: FormData) {
+  await checkAdminAuth();
+
+  const quizLevelId = Number(formData.get('quizLevelId'));
+  const direction = formData.get('direction');
+
+  if (!quizLevelId || (direction !== 'up' && direction !== 'down')) {
+    throw new Error('Invalid quiz level reorder request.');
+  }
+
+  const levels = await prisma.quizLevel.findMany({
+    orderBy: { levelOrder: 'asc' },
+    select: { id: true, levelOrder: true },
+  });
+
+  const currentIndex = levels.findIndex((level) => level.id === quizLevelId);
+  if (currentIndex === -1) {
+    throw new Error('Quiz level not found.');
+  }
+
+  const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+  if (targetIndex < 0 || targetIndex >= levels.length) {
+    return;
+  }
+
+  const currentLevel = levels[currentIndex];
+  const targetLevel = levels[targetIndex];
+
+  await prisma.$transaction([
+    prisma.quizLevel.update({
+      where: { id: currentLevel.id },
+      data: { levelOrder: targetLevel.levelOrder },
+    }),
+    prisma.quizLevel.update({
+      where: { id: targetLevel.id },
+      data: { levelOrder: currentLevel.levelOrder },
+    }),
+  ]);
+
+  await invalidateQuizStructureCache();
+  await invalidateActiveLevelsCache();
+  await invalidateLeaderboardCache();
+
+  revalidatePath('/admin');
+}

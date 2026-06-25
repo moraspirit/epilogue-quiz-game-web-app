@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createToken } from "@/lib/jwt";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { validateRegisterServer, normalizeIndexNumber } from "@/lib/validation";
@@ -63,10 +64,17 @@ export async function POST(req: Request) {
         },
     });
 
+    const token = await createToken({
+      id: newUser.id,
+      indexNumber: newUser.indexNumber ?? "",
+      name: newUser.name,
+    });
+
     return NextResponse.json(
       {
         success: true,
         message: "Registration successful",
+        token,
         user: {
           id: newUser.id,
           indexNumber: newUser.indexNumber ?? "",
