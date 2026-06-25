@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { addQuestion, deleteQuestion, moveQuestionOrder } from './actions';
 import ParticipantTable from './ParticipantTable';
+import AdminAddQuestionForm from '@/components/AdminAddQuestionForm';
 import { createPageMetadata } from '@/lib/siteMetadata';
 import { computeQuizStatus } from '@/lib/quizProgress';
 import type { Metadata } from 'next';
@@ -98,22 +99,7 @@ export default async function AdminDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="bg-[#181D2F]/80 backdrop-blur-md border border-white/5 rounded-2xl p-6 shadow-lg h-fit">
             <h2 className="text-lg font-semibold mb-5 text-white">Add Question</h2>
-            <form action={addQuestion} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Answer Key</label>
-                <input type="text" name="answerKey" required placeholder="e.g., 42" className="w-full bg-[#0A0E17] border border-white/10 text-slate-200 placeholder-slate-600 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#4A72FF]/50 transition-all" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium uppercase tracking-wider text-slate-400 mb-1.5">Question Text</label>
-                <textarea name="questionText" required rows={4} placeholder="Type the question prompt here..." className="w-full bg-[#0A0E17] border border-white/10 text-slate-200 placeholder-slate-600 rounded-xl p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#4A72FF]/50 resize-none transition-all" />
-              </div>
-              <p className="text-xs text-slate-500">
-                Order is assigned automatically when you save.
-              </p>
-              <button type="submit" className="w-full bg-gradient-to-r from-[#4A72FF] to-[#8C52FF] text-white font-medium text-sm py-3 px-4 rounded-xl hover:shadow-[0_0_20px_rgba(74,114,255,0.4)] transition-all cursor-pointer border-0 mt-2">
-                Save Question
-              </button>
-            </form>
+            <AdminAddQuestionForm action={addQuestion} />
           </div>
 
           <div className="lg:col-span-2 bg-[#181D2F]/80 backdrop-blur-md border border-white/5 rounded-2xl overflow-hidden shadow-lg flex flex-col">

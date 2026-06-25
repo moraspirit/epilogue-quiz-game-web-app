@@ -6,6 +6,7 @@ import {
   invalidateUserProgressCache,
 } from "@/lib/cache";
 import {
+  answersMatch,
   getCurrentQuestionFromSnapshot,
   loadUserQuizSnapshot,
   normalizeAnswer,
@@ -83,8 +84,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const isCorrect =
-      normalizeAnswer(answer) === normalizeAnswer(question.answerKey);
+    const isCorrect = answersMatch(
+      answer,
+      question.answerKey,
+      normalizeAnswer
+    );
 
     if (!isCorrect) {
       return NextResponse.json({

@@ -8,6 +8,7 @@ import {
   invalidateActiveLevelsCache,
   invalidateLeaderboardCache,
 } from '@/lib/cache';
+import { parseQuestionAnswerFromForm } from '@/lib/answerPattern';
 import { invalidateQuizStructureCache } from '@/lib/quizStructure';
 
 async function checkAdminAuth() {
@@ -72,11 +73,12 @@ export async function addQuestion(formData: FormData) {
   await checkAdminAuth();
 
   const questionText = formData.get('questionText') as string;
-  const answerKey = formData.get('answerKey') as string;
 
-  if (!questionText || !answerKey) {
-    throw new Error('Question text and answer key are required.');
+  if (!questionText?.trim()) {
+    throw new Error('Question text is required.');
   }
+
+  const { answerKey, answerPattern } = parseQuestionAnswerFromForm(formData);
 
   const maxOrder = await prisma.quizQuestion.aggregate({
     _max: { questionOrder: true },
@@ -84,7 +86,12 @@ export async function addQuestion(formData: FormData) {
   const questionOrder = (maxOrder._max.questionOrder ?? 0) + 1;
 
   await prisma.quizQuestion.create({
-    data: { questionText, answerKey, questionOrder },
+    data: {
+      questionText,
+      answerKey,
+      questionOrder,
+      answerPattern,
+    },
   });
 
   await invalidateQuizCaches();

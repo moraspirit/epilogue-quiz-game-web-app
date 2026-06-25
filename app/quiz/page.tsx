@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
-import AnswerBlanks, { isAnswerComplete } from '@/components/AnswerBlanks';
-import type { AnswerBlankSegment } from '@/lib/quizProgress';
+import AnswerBlanks from '@/components/AnswerBlanks';
+import { isAnswerComplete, type AnswerBlankSegment } from '@/lib/answerPattern';
 
 interface QuizQuestion {
   id: number;

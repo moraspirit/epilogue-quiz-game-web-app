@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { AnswerBlankSegment } from "@/lib/quizProgress";
+import type { AnswerBlankSegment } from "@/lib/answerPattern";
 
 interface AnswerBlanksProps {
   pattern: AnswerBlankSegment[];
@@ -9,17 +9,17 @@ interface AnswerBlanksProps {
   disabled?: boolean;
 }
 
-function getLetterSegmentLengths(pattern: AnswerBlankSegment[]): number[] {
+function getBlankSegmentLengths(pattern: AnswerBlankSegment[]): number[] {
   return pattern
     .filter(
-      (segment): segment is Extract<AnswerBlankSegment, { kind: "letters" }> =>
-        segment.kind === "letters"
+      (segment): segment is Extract<AnswerBlankSegment, { kind: "blank" }> =>
+        segment.kind === "blank"
     )
     .map((segment) => segment.length);
 }
 
-function createEmptyCells(letterLengths: number[]): string[][] {
-  return letterLengths.map((length) => Array.from({ length }, () => ""));
+function createEmptyCells(blankLengths: number[]): string[][] {
+  return blankLengths.map((length) => Array.from({ length }, () => ""));
 }
 
 function buildAnswer(
@@ -30,21 +30,29 @@ function buildAnswer(
     return "";
   }
 
-  let cellIndex = 0;
+  let blankIndex = 0;
   let result = "";
 
   for (const segment of pattern) {
-    if (segment.kind === "letters") {
-      result += cells[cellIndex].join("");
-      cellIndex += 1;
-    } else if (segment.kind === "dash") {
-      result += "-";
-    } else if (segment.kind === "space") {
-      result += " ";
+    if (segment.kind === "blank") {
+      result += cells[blankIndex].join("");
+      blankIndex += 1;
+    } else if (segment.kind === "fixed") {
+      result += segment.text;
+    } else {
+      result += segment.char;
     }
   }
 
   return result;
+}
+
+function fixedDisplay(text: string): string {
+  if (text === " ") {
+    return "space";
+  }
+
+  return text;
 }
 
 export default function AnswerBlanks({
@@ -52,16 +60,16 @@ export default function AnswerBlanks({
   onChange,
   disabled = false,
 }: AnswerBlanksProps) {
-  const letterLengths = getLetterSegmentLengths(pattern);
+  const blankLengths = getBlankSegmentLengths(pattern);
   const [cells, setCells] = useState<string[][]>(() =>
-    createEmptyCells(letterLengths)
+    createEmptyCells(blankLengths)
   );
   const inputRefs = useRef<Array<Array<HTMLInputElement | null>>>([]);
 
   useEffect(() => {
-    const nextCells = createEmptyCells(letterLengths);
+    const nextCells = createEmptyCells(blankLengths);
     setCells(nextCells);
-    inputRefs.current = letterLengths.map((length) =>
+    inputRefs.current = blankLengths.map((length) =>
       Array.from({ length }, () => null)
     );
     onChange("");
@@ -91,12 +99,12 @@ export default function AnswerBlanks({
     nextCells[segmentIndex][letterIndex] = sanitized;
     updateCells(nextCells);
 
-    if (sanitized && letterIndex < letterLengths[segmentIndex] - 1) {
+    if (sanitized && letterIndex < blankLengths[segmentIndex] - 1) {
       focusCell(segmentIndex, letterIndex + 1);
     } else if (
       sanitized &&
-      letterIndex === letterLengths[segmentIndex] - 1 &&
-      segmentIndex < letterLengths.length - 1
+      letterIndex === blankLengths[segmentIndex] - 1 &&
+      segmentIndex < blankLengths.length - 1
     ) {
       focusCell(segmentIndex + 1, 0);
     }
@@ -120,46 +128,42 @@ export default function AnswerBlanks({
         focusCell(segmentIndex, letterIndex - 1);
       } else if (segmentIndex > 0) {
         event.preventDefault();
-        focusCell(segmentIndex - 1, letterLengths[segmentIndex - 1] - 1);
+        focusCell(segmentIndex - 1, blankLengths[segmentIndex - 1] - 1);
       }
     }
   }
 
-  let letterSegmentIndex = 0;
+  let blankSegmentIndex = 0;
 
   return (
     <div className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-3">
       {pattern.map((segment, index) => {
-        if (segment.kind === "dash") {
+        if (segment.kind === "hidden") {
+          return null;
+        }
+
+        if (segment.kind === "fixed") {
           return (
             <span
-              key={`dash-${index}`}
-              className="px-1 text-xl font-bold text-white"
+              key={`fixed-${index}`}
+              className={
+                segment.text.trim() === "" && segment.text.includes(" ")
+                  ? "px-1 text-sm font-bold text-slate-500"
+                  : "px-1 text-xl font-bold text-white"
+              }
               aria-hidden="true"
             >
-              -
+              {fixedDisplay(segment.text)}
             </span>
           );
         }
 
-        if (segment.kind === "space") {
-          return (
-            <span
-              key={`space-${index}`}
-              className="px-1 text-sm font-bold text-slate-500"
-              aria-hidden="true"
-            >
-              space
-            </span>
-          );
-        }
-
-        const currentSegmentIndex = letterSegmentIndex;
-        letterSegmentIndex += 1;
+        const currentSegmentIndex = blankSegmentIndex;
+        blankSegmentIndex += 1;
 
         return (
           <div
-            key={`letters-${index}`}
+            key={`blank-${index}`}
             className="flex items-center gap-1.5 sm:gap-2"
           >
             {Array.from({ length: segment.length }).map((_, letterIndex) => (
@@ -198,37 +202,4 @@ export default function AnswerBlanks({
       })}
     </div>
   );
-}
-
-export function isAnswerComplete(
-  answer: string,
-  pattern: AnswerBlankSegment[]
-): boolean {
-  if (!answer.trim()) {
-    return false;
-  }
-
-  let index = 0;
-
-  for (const segment of pattern) {
-    if (segment.kind === "letters") {
-      const chunk = answer.slice(index, index + segment.length);
-      if (chunk.length !== segment.length || /[\s-]/.test(chunk)) {
-        return false;
-      }
-      index += segment.length;
-    } else if (segment.kind === "dash") {
-      if (answer[index] !== "-") {
-        return false;
-      }
-      index += 1;
-    } else if (segment.kind === "space") {
-      if (answer[index] !== " ") {
-        return false;
-      }
-      index += 1;
-    }
-  }
-
-  return index === answer.length;
 }

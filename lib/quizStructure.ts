@@ -1,11 +1,14 @@
 import { prisma } from "@/lib/prisma";
 import { CACHE_TTL, cacheDelete, cacheGet, cacheSet } from "@/lib/cache";
 
+import type { AnswerCell } from "@/lib/answerPattern";
+
 export type QuizQuestionData = {
   id: number;
   questionText: string;
   questionOrder: number;
   answerKey: string;
+  answerPattern: AnswerCell[] | null;
 };
 
 export type QuizStructure = {
@@ -35,10 +38,16 @@ async function loadQuizStructureFromDb(): Promise<QuizStructure> {
       questionText: true,
       questionOrder: true,
       answerKey: true,
+      answerPattern: true,
     },
   });
 
-  return buildStructure(questions);
+  return buildStructure(
+    questions.map((question) => ({
+      ...question,
+      answerPattern: question.answerPattern as AnswerCell[] | null,
+    }))
+  );
 }
 
 export async function getQuizStructure(): Promise<QuizStructure> {

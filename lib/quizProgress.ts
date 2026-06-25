@@ -1,5 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import {
+  answerKeyToDefaultCells,
+  cellsToPlayerPattern,
+  resolvePlayerPattern,
+  type AnswerBlankSegment,
+  type AnswerCell,
+} from "@/lib/answerPattern";
+import {
   getQuizStructure,
   type QuizQuestionData,
   type QuizStructure,
@@ -9,41 +16,29 @@ export function normalizeAnswer(answer: string): string {
   return answer.trim().toLowerCase();
 }
 
-export type AnswerBlankSegment =
-  | { kind: "letters"; length: number }
-  | { kind: "dash" }
-  | { kind: "space" };
+export type { AnswerBlankSegment, AnswerCell };
+export {
+  cellsToAnswerKey,
+  cellsToPlayerPattern,
+  resolveAnswerCells,
+  resolvePlayerPattern,
+  resolveAnswerPattern,
+  answersMatch,
+  isAnswerComplete,
+  parseQuestionAnswerFromForm,
+} from "@/lib/answerPattern";
 
+/** @deprecated Use resolvePlayerPattern instead */
 export function getAnswerBlankPattern(answerKey: string): AnswerBlankSegment[] {
-  const segments: AnswerBlankSegment[] = [];
-  const words = answerKey.trim().split(/\s+/).filter(Boolean);
-
-  words.forEach((word, wordIndex) => {
-    if (wordIndex > 0) {
-      segments.push({ kind: "space" });
-    }
-
-    const parts = word.split("-");
-    parts.forEach((part, partIndex) => {
-      if (partIndex > 0) {
-        segments.push({ kind: "dash" });
-      }
-
-      if (part.length > 0) {
-        segments.push({ kind: "letters", length: part.length });
-      }
-    });
-  });
-
-  return segments;
+  return cellsToPlayerPattern(answerKeyToDefaultCells(answerKey));
 }
 
-/** @deprecated Use getAnswerBlankPattern instead */
+/** @deprecated Use resolvePlayerPattern instead */
 export function getAnswerWordLengths(answerKey: string): number[] {
   return getAnswerBlankPattern(answerKey)
     .filter(
-      (segment): segment is Extract<AnswerBlankSegment, { kind: "letters" }> =>
-        segment.kind === "letters"
+      (segment): segment is Extract<AnswerBlankSegment, { kind: "blank" }> =>
+        segment.kind === "blank"
     )
     .map((segment) => segment.length);
 }

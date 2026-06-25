@@ -29,6 +29,7 @@ model QuizQuestion {
   id            Int            @id @default(autoincrement())
   questionText  String         @db.Text
   answerKey     String
+  answerPattern Json?
   questionOrder Int            @unique
   isActive      Boolean        @default(true)
   progress      UserProgress[]

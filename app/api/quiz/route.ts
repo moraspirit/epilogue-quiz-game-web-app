@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, extractTokenFromHeader } from "@/lib/jwt";
 import {
-  getAnswerBlankPattern,
+  resolvePlayerPattern,
   getCurrentQuizAccess,
 } from "@/lib/quizProgress";
 
@@ -47,7 +47,10 @@ export async function GET(req: NextRequest) {
         id: currentQuestion.id,
         questionText: currentQuestion.questionText,
         questionOrder: currentQuestion.questionOrder,
-        answerBlankPattern: getAnswerBlankPattern(currentQuestion.answerKey),
+        answerBlankPattern: resolvePlayerPattern(
+          currentQuestion.answerKey,
+          currentQuestion.answerPattern
+        ),
       },
     });
   } catch (error) {
