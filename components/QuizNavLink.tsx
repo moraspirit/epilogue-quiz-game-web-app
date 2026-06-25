@@ -24,11 +24,24 @@ function NavIcon() {
   );
 }
 
-export default function QuizNavLink() {
+interface QuizNavLinkProps {
+  onClick?: () => void;
+  className?: string;
+}
+
+export default function QuizNavLink({
+  onClick,
+  className = "",
+}: QuizNavLinkProps) {
   const router = useRouter();
 
-  async function handleClick(event: React.MouseEvent<HTMLButtonElement>) {
+  async function handleClick(
+    event: React.MouseEvent<HTMLButtonElement>
+  ) {
     event.preventDefault();
+
+    onClick?.();
+
     await navigateToCurrentQuiz(router.push);
   }
 
@@ -36,7 +49,7 @@ export default function QuizNavLink() {
     <button
       type="button"
       onClick={handleClick}
-      className="inline-flex items-center gap-2 transition hover:text-white"
+      className={`inline-flex items-center gap-2 transition hover:text-white ${className}`}
     >
       <NavIcon />
       Quiz
