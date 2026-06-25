@@ -8,83 +8,37 @@ export type QuizQuestionData = {
   answerKey: string;
 };
 
-export type QuizLevelData = {
-  id: number;
-  uuid: string;
-  title: string;
-  levelOrder: number;
-  isActive: boolean;
-  questionIds: number[];
-  questions: QuizQuestionData[];
-};
-
 export type QuizStructure = {
-  levels: QuizLevelData[];
+  questions: QuizQuestionData[];
   totalQuestions: number;
-  levelByUuid: Map<string, QuizLevelData>;
-  levelById: Map<number, QuizLevelData>;
+  questionById: Map<number, QuizQuestionData>;
 };
 
 const CACHE_KEY = "quiz:structure";
 let memoryCache: { data: QuizStructure; expiresAt: number } | null = null;
 const MEMORY_TTL_MS = CACHE_TTL.QUIZ_STRUCTURE * 1000;
 
-function buildStructure(
-  levels: Array<{
-    id: number;
-    uuid: string;
-    title: string;
-    levelOrder: number;
-    isActive: boolean;
-    questions: QuizQuestionData[];
-  }>
-): QuizStructure {
-  const levelData: QuizLevelData[] = levels.map((level) => ({
-    id: level.id,
-    uuid: level.uuid,
-    title: level.title,
-    levelOrder: level.levelOrder,
-    isActive: level.isActive,
-    questions: level.questions,
-    questionIds: level.questions.map((question) => question.id),
-  }));
-
-  let totalQuestions = 0;
-  for (const level of levelData) {
-    totalQuestions += level.questionIds.length;
-  }
-
+function buildStructure(questions: QuizQuestionData[]): QuizStructure {
   return {
-    levels: levelData,
-    totalQuestions,
-    levelByUuid: new Map(levelData.map((level) => [level.uuid, level])),
-    levelById: new Map(levelData.map((level) => [level.id, level])),
+    questions,
+    totalQuestions: questions.length,
+    questionById: new Map(questions.map((question) => [question.id, question])),
   };
 }
 
 async function loadQuizStructureFromDb(): Promise<QuizStructure> {
-  const levels = await prisma.quizLevel.findMany({
+  const questions = await prisma.quizQuestion.findMany({
     where: { isActive: true },
-    orderBy: { levelOrder: "asc" },
+    orderBy: { questionOrder: "asc" },
     select: {
       id: true,
-      uuid: true,
-      title: true,
-      levelOrder: true,
-      isActive: true,
-      questions: {
-        orderBy: { questionOrder: "asc" },
-        select: {
-          id: true,
-          questionText: true,
-          questionOrder: true,
-          answerKey: true,
-        },
-      },
+      questionText: true,
+      questionOrder: true,
+      answerKey: true,
     },
   });
 
-  return buildStructure(levels);
+  return buildStructure(questions);
 }
 
 export async function getQuizStructure(): Promise<QuizStructure> {
@@ -93,12 +47,12 @@ export async function getQuizStructure(): Promise<QuizStructure> {
   }
 
   const cached = await cacheGet<{
-    levels: QuizLevelData[];
+    questions: QuizQuestionData[];
     totalQuestions: number;
   }>(CACHE_KEY);
 
   if (cached) {
-    const structure = buildStructure(cached.levels);
+    const structure = buildStructure(cached.questions);
     memoryCache = {
       data: structure,
       expiresAt: Date.now() + MEMORY_TTL_MS,
@@ -115,7 +69,7 @@ export async function getQuizStructure(): Promise<QuizStructure> {
   await cacheSet(
     CACHE_KEY,
     {
-      levels: structure.levels,
+      questions: structure.questions,
       totalQuestions: structure.totalQuestions,
     },
     CACHE_TTL.QUIZ_STRUCTURE

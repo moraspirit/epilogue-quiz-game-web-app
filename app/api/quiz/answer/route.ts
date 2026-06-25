@@ -5,22 +5,15 @@ import {
   invalidateLeaderboardCache,
   invalidateUserProgressCache,
 } from "@/lib/cache";
-import { getQuizStructure } from "@/lib/quizStructure";
 import {
   getCurrentQuestionFromSnapshot,
-  hasCompletedPreviousLevelsFromSnapshot,
-  isLevelFullyCompletedFromSnapshot,
   loadUserQuizSnapshot,
   normalizeAnswer,
 } from "@/lib/quizProgress";
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ uuid: string }> }
-) {
+export async function POST(req: NextRequest) {
   try {
-    const authHeader = req.headers.get("authorization");
-    const token = extractTokenFromHeader(authHeader);
+    const token = extractTokenFromHeader(req.headers.get("authorization"));
 
     if (!token) {
       return NextResponse.json(
@@ -44,7 +37,6 @@ export async function POST(
       return NextResponse.json({ error: "Invalid user" }, { status: 401 });
     }
 
-    const { uuid } = await params;
     const body = await req.json();
     const { answer, questionId } = body;
 
@@ -62,45 +54,13 @@ export async function POST(
       );
     }
 
-    const [structure, snapshot] = await Promise.all([
-      getQuizStructure(),
-      loadUserQuizSnapshot(userId),
-    ]);
+    const snapshot = await loadUserQuizSnapshot(userId);
+    const question = snapshot.structure.questionById.get(questionId);
 
-    const level = structure.levelByUuid.get(uuid);
-
-    if (!level) {
-      return NextResponse.json(
-        { error: "Quiz level not found" },
-        { status: 404 }
-      );
-    }
-
-    if (!level.isActive) {
-      return NextResponse.json(
-        { error: "This quiz level is not active" },
-        { status: 403 }
-      );
-    }
-
-    const question = level.questions.find((item) => item.id === questionId);
     if (!question) {
       return NextResponse.json(
-        { error: "Question not found in this level" },
+        { error: "Question not found" },
         { status: 404 }
-      );
-    }
-
-    if (
-      !hasCompletedPreviousLevelsFromSnapshot(
-        level.levelOrder,
-        structure,
-        snapshot.correctQuestionIds
-      )
-    ) {
-      return NextResponse.json(
-        { error: "You must complete previous levels first" },
-        { status: 403 }
       );
     }
 
@@ -112,7 +72,7 @@ export async function POST(
     }
 
     const currentQuestion = getCurrentQuestionFromSnapshot(
-      level,
+      snapshot.structure,
       snapshot.correctQuestionIds
     );
 
@@ -152,68 +112,19 @@ export async function POST(
       },
     });
 
-    const updatedCorrectQuestionIds = new Set(snapshot.correctQuestionIds);
-    updatedCorrectQuestionIds.add(question.id);
-    const score = updatedCorrectQuestionIds.size;
+    const score = snapshot.correctQuestionIds.size + 1;
+    const totalQuestions = snapshot.structure.totalQuestions;
+    const quizComplete = score >= totalQuestions;
 
     await invalidateUserProgressCache(userId);
     await invalidateLeaderboardCache();
 
-    const nextQuestion = getCurrentQuestionFromSnapshot(
-      level,
-      updatedCorrectQuestionIds
-    );
-    const hasMoreQuestionsInLevel = nextQuestion !== null;
-    const levelCompleted = isLevelFullyCompletedFromSnapshot(
-      level,
-      updatedCorrectQuestionIds
-    );
-
-    if (hasMoreQuestionsInLevel) {
-      return NextResponse.json({
-        success: true,
-        correct: true,
-        hasMoreQuestionsInLevel: true,
-        levelCompleted: false,
-        quizComplete: false,
-        score,
-      });
-    }
-
-    if (!levelCompleted) {
-      return NextResponse.json({
-        success: true,
-        correct: true,
-        hasMoreQuestionsInLevel: false,
-        levelCompleted: false,
-        quizComplete: false,
-        score,
-      });
-    }
-
-    const quizComplete = structure.levels.every((activeLevel) =>
-      isLevelFullyCompletedFromSnapshot(activeLevel, updatedCorrectQuestionIds)
-    );
-
-    if (!quizComplete) {
-      return NextResponse.json({
-        success: true,
-        correct: true,
-        hasMoreQuestionsInLevel: false,
-        levelCompleted: true,
-        quizComplete: false,
-        score,
-      });
-    }
-
     return NextResponse.json({
       success: true,
       correct: true,
-      hasMoreQuestionsInLevel: false,
-      levelCompleted: true,
-      quizComplete: true,
+      quizComplete,
       score,
-      totalQuestions: structure.totalQuestions,
+      totalQuestions,
     });
   } catch (error) {
     console.error("Error submitting answer:", error);

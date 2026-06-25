@@ -15,27 +15,15 @@ CREATE TABLE `User` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
-CREATE TABLE `QuizLevel` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `uuid` CHAR(36) NOT NULL,
-    `title` VARCHAR(191) NOT NULL,
-    `levelOrder` INTEGER NOT NULL,
-    `isActive` BOOLEAN NOT NULL DEFAULT true,
-
-    UNIQUE INDEX `QuizLevel_uuid_key`(`uuid`),
-    INDEX `QuizLevel_isActive_levelOrder_idx`(`isActive`, `levelOrder`),
-    PRIMARY KEY (`id`)
-) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- CreateTable
 CREATE TABLE `QuizQuestion` (
     `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `quizLevelId` INTEGER NOT NULL,
     `questionText` TEXT NOT NULL,
     `answerKey` VARCHAR(191) NOT NULL,
     `questionOrder` INTEGER NOT NULL,
+    `isActive` BOOLEAN NOT NULL DEFAULT true,
 
-    INDEX `QuizQuestion_quizLevelId_fkey`(`quizLevelId`),
+    UNIQUE INDEX `QuizQuestion_questionOrder_key`(`questionOrder`),
+    INDEX `QuizQuestion_isActive_questionOrder_idx`(`isActive`, `questionOrder`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -53,9 +41,6 @@ CREATE TABLE `UserProgress` (
     UNIQUE INDEX `UserProgress_userId_questionId_key`(`userId`, `questionId`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- AddForeignKey
-ALTER TABLE `QuizQuestion` ADD CONSTRAINT `QuizQuestion_quizLevelId_fkey` FOREIGN KEY (`quizLevelId`) REFERENCES `QuizLevel`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `UserProgress` ADD CONSTRAINT `UserProgress_questionId_fkey` FOREIGN KEY (`questionId`) REFERENCES `QuizQuestion`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;

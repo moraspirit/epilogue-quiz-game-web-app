@@ -1,6 +1,5 @@
 'use server';
 
-// import { PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
@@ -24,31 +23,53 @@ async function checkAdminAuth() {
     if (payload.role !== 'admin') {
       throw new Error('Forbidden: Not an administrator');
     }
-  } catch (error) {
+  } catch {
     throw new Error('Unauthorized: Invalid session token');
   }
+}
+
+async function renormalizeQuestionOrders() {
+  const questions = await prisma.quizQuestion.findMany({
+    orderBy: { questionOrder: 'asc' },
+    select: { id: true },
+  });
+
+  await prisma.$transaction(
+    questions.map((question, index) =>
+      prisma.quizQuestion.update({
+        where: { id: question.id },
+        data: { questionOrder: index + 1 },
+      })
+    )
+  );
+}
+
+async function invalidateQuizCaches() {
+  await invalidateQuizStructureCache();
+  await invalidateActiveLevelsCache();
+  await invalidateLeaderboardCache();
 }
 
 export async function addQuestion(formData: FormData) {
   await checkAdminAuth();
 
-  const quizLevelId = Number(formData.get('quizLevelId'));
   const questionText = formData.get('questionText') as string;
   const answerKey = formData.get('answerKey') as string;
-  const questionOrder = Number(formData.get('questionOrder'));
 
-  if (!quizLevelId || !questionText || !answerKey || isNaN(questionOrder)) {
-    throw new Error('All fields are required.');
+  if (!questionText || !answerKey) {
+    throw new Error('Question text and answer key are required.');
   }
 
+  const maxOrder = await prisma.quizQuestion.aggregate({
+    _max: { questionOrder: true },
+  });
+  const questionOrder = (maxOrder._max.questionOrder ?? 0) + 1;
+
   await prisma.quizQuestion.create({
-    data: { quizLevelId, questionText, answerKey, questionOrder },
+    data: { questionText, answerKey, questionOrder },
   });
 
-  await invalidateQuizStructureCache();
-  await invalidateActiveLevelsCache();
-  await invalidateLeaderboardCache();
-
+  await invalidateQuizCaches();
   revalidatePath('/admin');
 }
 
@@ -65,59 +86,57 @@ export async function deleteQuestion(formData: FormData) {
     await prisma.quizQuestion.delete({
       where: { id: questionId },
     });
-  } catch (error) {
+  } catch {
     console.warn(`Question ID ${questionId} not found or already deleted.`);
   }
 
-  await invalidateQuizStructureCache();
-  await invalidateActiveLevelsCache();
-  await invalidateLeaderboardCache();
-
+  await renormalizeQuestionOrders();
+  await invalidateQuizCaches();
   revalidatePath('/admin');
 }
 
-export async function moveQuizLevelOrder(formData: FormData) {
+export async function moveQuestionOrder(formData: FormData) {
   await checkAdminAuth();
 
-  const quizLevelId = Number(formData.get('quizLevelId'));
+  const questionId = Number(formData.get('questionId'));
   const direction = formData.get('direction');
 
-  if (!quizLevelId || (direction !== 'up' && direction !== 'down')) {
-    throw new Error('Invalid quiz level reorder request.');
+  if (!questionId || (direction !== 'up' && direction !== 'down')) {
+    throw new Error('Invalid question reorder request.');
   }
 
-  const levels = await prisma.quizLevel.findMany({
-    orderBy: { levelOrder: 'asc' },
-    select: { id: true, levelOrder: true },
+  const questions = await prisma.quizQuestion.findMany({
+    orderBy: { questionOrder: 'asc' },
+    select: { id: true, questionOrder: true },
   });
 
-  const currentIndex = levels.findIndex((level) => level.id === quizLevelId);
+  const currentIndex = questions.findIndex(
+    (question) => question.id === questionId
+  );
   if (currentIndex === -1) {
-    throw new Error('Quiz level not found.');
+    throw new Error('Question not found.');
   }
 
   const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-  if (targetIndex < 0 || targetIndex >= levels.length) {
+  if (targetIndex < 0 || targetIndex >= questions.length) {
     return;
   }
 
-  const currentLevel = levels[currentIndex];
-  const targetLevel = levels[targetIndex];
+  const currentQuestion = questions[currentIndex];
+  const targetQuestion = questions[targetIndex];
 
   await prisma.$transaction([
-    prisma.quizLevel.update({
-      where: { id: currentLevel.id },
-      data: { levelOrder: targetLevel.levelOrder },
+    prisma.quizQuestion.update({
+      where: { id: currentQuestion.id },
+      data: { questionOrder: targetQuestion.questionOrder },
     }),
-    prisma.quizLevel.update({
-      where: { id: targetLevel.id },
-      data: { levelOrder: currentLevel.levelOrder },
+    prisma.quizQuestion.update({
+      where: { id: targetQuestion.id },
+      data: { questionOrder: currentQuestion.questionOrder },
     }),
   ]);
 
-  await invalidateQuizStructureCache();
-  await invalidateActiveLevelsCache();
-  await invalidateLeaderboardCache();
-
+  await renormalizeQuestionOrders();
+  await invalidateQuizCaches();
   revalidatePath('/admin');
 }

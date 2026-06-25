@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import {
   getQuizStructure,
-  type QuizLevelData,
   type QuizQuestionData,
   type QuizStructure,
 } from "@/lib/quizStructure";
@@ -57,132 +56,15 @@ export function computeQuizStatus(
   return "Idle";
 }
 
-export function isLevelFullyCompletedFromSnapshot(
-  level: QuizLevelData,
-  correctQuestionIds: Set<number>
-): boolean {
-  return (
-    level.questionIds.length > 0 &&
-    level.questionIds.every((questionId) => correctQuestionIds.has(questionId))
-  );
-}
-
-export function hasCompletedPreviousLevelsFromSnapshot(
-  levelOrder: number,
+export function getCurrentQuestionFromSnapshot(
   structure: QuizStructure,
   correctQuestionIds: Set<number>
-): boolean {
-  for (const level of structure.levels) {
-    if (level.levelOrder >= levelOrder) {
-      break;
-    }
-
-    if (!isLevelFullyCompletedFromSnapshot(level, correctQuestionIds)) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-export function getCurrentQuestionFromSnapshot(
-  level: QuizLevelData,
-  correctQuestionIds: Set<number>
 ): QuizQuestionData | null {
-  return level.questions.find((question) => !correctQuestionIds.has(question.id)) ?? null;
-}
-
-export async function getActiveLevels() {
-  const structure = await getQuizStructure();
-  return structure.levels.map(({ questionIds, questions, ...level }) => level);
-}
-
-export async function getLevelQuestions(quizLevelId: number) {
-  const structure = await getQuizStructure();
-  return structure.levelById.get(quizLevelId)?.questions ?? [];
-}
-
-export async function isLevelFullyCompleted(
-  userId: number,
-  quizLevelId: number
-): Promise<boolean> {
-  const snapshot = await loadUserQuizSnapshot(userId);
-  const level = snapshot.structure.levelById.get(quizLevelId);
-
-  if (!level) {
-    return false;
-  }
-
-  return isLevelFullyCompletedFromSnapshot(level, snapshot.correctQuestionIds);
-}
-
-export async function getCurrentQuestionForLevel(
-  userId: number,
-  quizLevelId: number
-) {
-  const snapshot = await loadUserQuizSnapshot(userId);
-  const level = snapshot.structure.levelById.get(quizLevelId);
-
-  if (!level) {
-    return null;
-  }
-
-  return getCurrentQuestionFromSnapshot(level, snapshot.correctQuestionIds);
-}
-
-export async function hasCompletedPreviousLevels(
-  userId: number,
-  levelOrder: number
-): Promise<boolean> {
-  const snapshot = await loadUserQuizSnapshot(userId);
-  return hasCompletedPreviousLevelsFromSnapshot(
-    levelOrder,
-    snapshot.structure,
-    snapshot.correctQuestionIds
+  return (
+    structure.questions.find(
+      (question) => !correctQuestionIds.has(question.id)
+    ) ?? null
   );
-}
-
-export async function getUserLevelStatus(userId: number) {
-  const snapshot = await loadUserQuizSnapshot(userId);
-
-  return snapshot.structure.levels.map((level) => {
-    const isCompleted = isLevelFullyCompletedFromSnapshot(
-      level,
-      snapshot.correctQuestionIds
-    );
-    const previousCompleted = hasCompletedPreviousLevelsFromSnapshot(
-      level.levelOrder,
-      snapshot.structure,
-      snapshot.correctQuestionIds
-    );
-
-    let status: "locked" | "available" | "completed" = "locked";
-
-    if (isCompleted) {
-      status = "completed";
-    } else if (previousCompleted) {
-      status = "available";
-    }
-
-    return {
-      id: level.id,
-      uuid: level.uuid,
-      title: level.title,
-      levelOrder: level.levelOrder,
-      isActive: level.isActive,
-      status,
-      isUnlocked: previousCompleted,
-    };
-  });
-}
-
-export async function getQuizScoreSummary(userId: number) {
-  const snapshot = await loadUserQuizSnapshot(userId);
-
-  return {
-    correctCount: snapshot.correctQuestionIds.size,
-    totalQuestions: snapshot.structure.totalQuestions,
-  };
 }
 
 export async function getUserQuizStats(userId: number) {
@@ -195,91 +77,47 @@ export async function getUserQuizStats(userId: number) {
   };
 }
 
-export async function getNextPlayableLevel(userId: number) {
+export async function getNextPlayableQuiz(userId: number) {
   const snapshot = await loadUserQuizSnapshot(userId);
+  const currentQuestion = getCurrentQuestionFromSnapshot(
+    snapshot.structure,
+    snapshot.correctQuestionIds
+  );
 
-  for (const level of snapshot.structure.levels) {
-    if (
-      isLevelFullyCompletedFromSnapshot(level, snapshot.correctQuestionIds)
-    ) {
-      continue;
-    }
-
-    if (
-      !hasCompletedPreviousLevelsFromSnapshot(
-        level.levelOrder,
-        snapshot.structure,
-        snapshot.correctQuestionIds
-      )
-    ) {
-      continue;
-    }
-
+  if (!currentQuestion) {
     return {
-      done: false as const,
-      nextLevelUuid: level.uuid,
-      nextLevelOrder: level.levelOrder,
+      done: true as const,
+      score: snapshot.correctQuestionIds.size,
+      totalQuestions: snapshot.structure.totalQuestions,
     };
   }
 
   return {
-    done: true as const,
-    score: snapshot.correctQuestionIds.size,
-    totalQuestions: snapshot.structure.totalQuestions,
+    done: false as const,
   };
 }
 
-export async function getQuizLevelAccess(
-  userId: number,
-  uuid: string
-): Promise<
+export async function getCurrentQuizAccess(userId: number): Promise<
   | { ok: false; status: number; body: Record<string, unknown> }
   | {
       ok: true;
-      level: QuizLevelData;
       currentQuestion: QuizQuestionData;
       score: number;
+      totalQuestions: number;
     }
 > {
   const snapshot = await loadUserQuizSnapshot(userId);
-  const level = snapshot.structure.levelByUuid.get(uuid);
 
-  if (!level) {
+  if (snapshot.structure.totalQuestions === 0) {
     return {
       ok: false,
-      status: 404,
-      body: { error: "Quiz level not found" },
-    };
-  }
-
-  if (!hasCompletedPreviousLevelsFromSnapshot(
-    level.levelOrder,
-    snapshot.structure,
-    snapshot.correctQuestionIds
-  )) {
-    return {
-      ok: false,
-      status: 403,
-      body: { error: "You must complete previous levels first" },
-    };
-  }
-
-  if (
-    isLevelFullyCompletedFromSnapshot(level, snapshot.correctQuestionIds)
-  ) {
-    return {
-      ok: false,
-      status: 409,
-      body: {
-        error: "Level already completed",
-        alreadyCompleted: true,
-        isCorrect: true,
-      },
+      status: 500,
+      body: { error: "No quiz questions configured" },
     };
   }
 
   const currentQuestion = getCurrentQuestionFromSnapshot(
-    level,
+    snapshot.structure,
     snapshot.correctQuestionIds
   );
 
@@ -288,7 +126,7 @@ export async function getQuizLevelAccess(
       ok: false,
       status: 409,
       body: {
-        error: "Level already completed",
+        error: "Quiz already completed",
         alreadyCompleted: true,
         isCorrect: true,
       },
@@ -297,8 +135,8 @@ export async function getQuizLevelAccess(
 
   return {
     ok: true,
-    level,
     currentQuestion,
     score: snapshot.correctQuestionIds.size,
+    totalQuestions: snapshot.structure.totalQuestions,
   };
 }

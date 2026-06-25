@@ -53,13 +53,8 @@ export async function navigateToCurrentQuiz(
       return "complete";
     }
 
-    if (data.nextLevelUuid) {
-      navigate(`/quiz/${data.nextLevelUuid}`);
-      return "quiz";
-    }
-
-    navigate("/login");
-    return "login";
+    navigate("/quiz");
+    return "quiz";
   } catch {
     navigate("/login");
     return "login";

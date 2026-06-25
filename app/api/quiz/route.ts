@@ -2,16 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, extractTokenFromHeader } from "@/lib/jwt";
 import {
   getAnswerWordLengths,
-  getQuizLevelAccess,
+  getCurrentQuizAccess,
 } from "@/lib/quizProgress";
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ uuid: string }> }
-) {
+export async function GET(req: NextRequest) {
   try {
-    const authHeader = req.headers.get("authorization");
-    const token = extractTokenFromHeader(authHeader);
+    const token = extractTokenFromHeader(req.headers.get("authorization"));
 
     if (!token) {
       return NextResponse.json(
@@ -35,41 +31,27 @@ export async function GET(
       return NextResponse.json({ error: "Invalid user" }, { status: 401 });
     }
 
-    const { uuid } = await params;
-    const access = await getQuizLevelAccess(userId, uuid);
+    const access = await getCurrentQuizAccess(userId);
 
     if (!access.ok) {
       return NextResponse.json(access.body, { status: access.status });
     }
 
-    const { level, currentQuestion, score } = access;
-
-    if (level.questions.length === 0) {
-      return NextResponse.json(
-        { error: "This level has no questions configured" },
-        { status: 500 }
-      );
-    }
+    const { currentQuestion, score, totalQuestions } = access;
 
     return NextResponse.json({
       success: true,
       score,
-      level: {
-        id: level.id,
-        uuid: level.uuid,
-        title: level.title,
-        levelOrder: level.levelOrder,
-        totalQuestions: level.questions.length,
-        question: {
-          id: currentQuestion.id,
-          questionText: currentQuestion.questionText,
-          questionOrder: currentQuestion.questionOrder,
-        },
+      totalQuestions,
+      question: {
+        id: currentQuestion.id,
+        questionText: currentQuestion.questionText,
+        questionOrder: currentQuestion.questionOrder,
         answerWordLengths: getAnswerWordLengths(currentQuestion.answerKey),
       },
     });
   } catch (error) {
-    console.error("Error fetching quiz level:", error);
+    console.error("Error fetching quiz question:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

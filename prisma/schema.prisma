@@ -25,27 +25,15 @@ enum Role {
   ADMIN
 }
 
-model QuizLevel {
-  id         Int            @id @default(autoincrement())
-  uuid       String         @unique @db.Char(36)
-  title      String
-  levelOrder Int
-  isActive   Boolean        @default(true)
-  questions  QuizQuestion[]
-
-  @@index([isActive, levelOrder])
-}
-
 model QuizQuestion {
   id            Int            @id @default(autoincrement())
-  quizLevelId   Int
   questionText  String         @db.Text
   answerKey     String
-  questionOrder Int
-  quizLevel     QuizLevel      @relation(fields: [quizLevelId], references: [id], onDelete: Cascade)
+  questionOrder Int            @unique
+  isActive      Boolean        @default(true)
   progress      UserProgress[]
 
-  @@index([quizLevelId], map: "QuizQuestion_quizLevelId_fkey")
+  @@index([isActive, questionOrder])
 }
 
 model UserProgress {

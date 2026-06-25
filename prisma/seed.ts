@@ -1,5 +1,4 @@
 import { PrismaClient } from '@prisma/client';
-import { randomUUID } from 'crypto';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -9,7 +8,6 @@ async function main() {
 
   await prisma.userProgress.deleteMany({});
   await prisma.quizQuestion.deleteMany({});
-  await prisma.quizLevel.deleteMany({});
   await prisma.user.deleteMany({});
 
   const adminPasswordHash = await bcrypt.hash('admin123', 10);
@@ -31,18 +29,8 @@ async function main() {
     },
   });
 
-  const level = await prisma.quizLevel.create({
-    data: {
-      uuid: randomUUID(),
-      title: 'Level 1',
-      levelOrder: 1,
-      isActive: true,
-    },
-  });
-
   const question = await prisma.quizQuestion.create({
     data: {
-      quizLevelId: level.id,
       questionText: 'Sample question',
       answerKey: 'answer',
       questionOrder: 1,
