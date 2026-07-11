@@ -189,7 +189,6 @@ export default function LoginPage() {
                   type="text"
                   placeholder="e.g. 230317J"
                   value={indexNumber}
-                  maxLength={7}
                   autoCapitalize="characters"
                   spellCheck={false}
                   onChange={(e) =>

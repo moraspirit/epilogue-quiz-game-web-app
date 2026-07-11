@@ -1,8 +1,7 @@
 // Validation rules and error messages
 
-/** 6 digits (starting 20–26) + 1 trailing letter, e.g. 230317J */
-export const INDEX_NUMBER_PATTERN = /^(20|21|22|23|24|25|26)\d{4}[A-Z]$/;
-export const INDEX_NUMBER_LENGTH = 7;
+/** Alphanumeric string, e.g. CS2024042 or 230317J */
+export const INDEX_NUMBER_PATTERN = /^[a-zA-Z0-9]+$/;
 
 export function normalizeIndexNumber(indexNumber: string): string {
   return indexNumber.trim().toUpperCase();
@@ -14,10 +13,9 @@ export function isValidIndexNumber(indexNumber: string): boolean {
 
 export const ValidationRules = {
   indexNumber: {
-    length: INDEX_NUMBER_LENGTH,
     pattern: INDEX_NUMBER_PATTERN,
     errorMessage:
-      "Index number must be 6 digits followed by one letter (e.g. 230317J). Must start with 20–26.",
+      "Index number must contain only letters and numbers.",
   },
   name: {
     minLength: 2,
@@ -56,13 +54,6 @@ function validateIndexNumberField(indexNumber: string): ValidationError | null {
     return {
       field: "indexNumber",
       message: "Index number is required",
-    };
-  }
-
-  if (normalizedIndex.length !== ValidationRules.indexNumber.length) {
-    return {
-      field: "indexNumber",
-      message: `Index number must be exactly ${ValidationRules.indexNumber.length} characters (6 digits + 1 letter)`,
     };
   }
 
