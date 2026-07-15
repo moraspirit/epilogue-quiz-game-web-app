@@ -27,9 +27,11 @@ async function buildLeaderboard(): Promise<LeaderboardEntry[]> {
   const [users, structure, correctCounts] = await Promise.all([
     prisma.user.findMany({
       where: { role: "USER" },
-      select: {
-        id: true,
-        name: true,
+      include: {
+        progress: {
+          orderBy: { passedAt: "desc" },
+          take: 1,
+        },
       },
     }),
     getQuizStructure(),
@@ -46,20 +48,32 @@ async function buildLeaderboard(): Promise<LeaderboardEntry[]> {
 
   const entries = users.map((user) => {
     const score = scoreByUserId.get(user.id) ?? 0;
+    const lastCompletedAt = user.progress[0]?.passedAt ?? null;
 
     return {
       id: user.id,
       name: user.name,
       score,
       status: computeQuizStatus(score, structure.totalQuestions),
+      lastCompletedAt,
       rank: 0,
     };
   });
 
   return entries
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score;
+      }
+      const timeA = a.lastCompletedAt ? new Date(a.lastCompletedAt).getTime() : Infinity;
+      const timeB = b.lastCompletedAt ? new Date(b.lastCompletedAt).getTime() : Infinity;
+      return timeA - timeB;
+    })
     .map((entry, index) => ({
-      ...entry,
+      id: entry.id,
+      name: entry.name,
+      score: entry.score,
+      status: entry.status,
       rank: index + 1,
     }));
 }
